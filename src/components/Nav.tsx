@@ -2,12 +2,13 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { MapIcon, PlusIcon, SearchIcon } from "./Icons";
+import { MapIcon, PinIcon, PlusIcon, SearchIcon } from "./Icons";
 
 const links = [
   { href: "/", label: "Search", icon: SearchIcon, match: (p: string) => p === "/" || (p.startsWith("/orders/") && p !== "/orders/new") },
   { href: "/orders/new", label: "New order", icon: PlusIcon, match: (p: string) => p === "/orders/new" },
-  { href: "/locations", label: "Locations", icon: MapIcon, match: (p: string) => p.startsWith("/locations") },
+  { href: "/map", label: "Map", icon: MapIcon, match: (p: string) => p.startsWith("/map") },
+  { href: "/locations", label: "Locations", icon: PinIcon, match: (p: string) => p.startsWith("/locations") },
 ];
 
 export default function Nav() {

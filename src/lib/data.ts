@@ -16,10 +16,13 @@ import {
 import { useEffect, useState } from "react";
 import { db, firebaseConfigured } from "./firebase";
 import { imageToDataUrl } from "./qr";
+import { ZONES, zoneNameScore, type Zone } from "./siteMap";
 
 export type OfficeLocation = {
   id: string;
   name: string;
+  /** The site-map area this location is drawn as (see lib/siteMap.ts). */
+  zoneId?: string | null;
   createdAt?: Timestamp | null;
 };
 
@@ -82,6 +85,49 @@ export async function addLocations(names: string[]) {
     )
   );
   return clean.length;
+}
+
+/**
+ * Makes sure every area on the site map has a location:
+ * links existing locations whose name matches an area (or its aliases),
+ * and creates locations for the rest. Returns what it did.
+ */
+export function planMapSync(locations: OfficeLocation[]) {
+  const link: { location: OfficeLocation; zone: Zone }[] = [];
+  const create: Zone[] = [];
+  const used = new Set(locations.filter((l) => l.zoneId).map((l) => l.id));
+  const pending = ZONES.filter((zone) => !locations.some((l) => l.zoneId === zone.id));
+  // Exact name matches first, then aliases, so "Dinma's Mesh Area" wins over a lookalike.
+  for (const score of [2, 1]) {
+    for (const zone of pending) {
+      if (link.some((x) => x.zone.id === zone.id)) continue;
+      const match = locations.find((l) => !used.has(l.id) && zoneNameScore(l.name, zone) === score);
+      if (match) {
+        used.add(match.id);
+        link.push({ location: match, zone });
+      }
+    }
+  }
+  for (const zone of pending) if (!link.some((x) => x.zone.id === zone.id)) create.push(zone);
+  return { link, create };
+}
+
+export async function syncMapLocations(locations: OfficeLocation[]) {
+  const { link, create } = planMapSync(locations);
+  if (!link.length && !create.length) return { linked: 0, created: 0 };
+  const batch = writeBatch(db());
+  for (const { location, zone } of link) {
+    batch.update(doc(db(), "locations", location.id), { zoneId: zone.id });
+  }
+  for (const zone of create) {
+    batch.set(doc(collection(db(), "locations")), {
+      name: zone.label,
+      zoneId: zone.id,
+      createdAt: serverTimestamp(),
+    });
+  }
+  await batch.commit();
+  return { linked: link.length, created: create.length };
 }
 
 export async function renameLocation(id: string, name: string) {

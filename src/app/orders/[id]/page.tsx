@@ -3,10 +3,11 @@
 import Link from "next/link";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useState } from "react";
-import { ArrowLeft, CheckIcon, EditIcon, PinIcon, SearchIcon, TrashIcon } from "@/components/Icons";
+import { ArrowLeft, CheckIcon, ChevronRight, EditIcon, PinIcon, SearchIcon, TrashIcon } from "@/components/Icons";
 import QrLabel from "@/components/QrLabel";
 import SetupNotice from "@/components/Setup";
-import { deleteOrder, useOrder, usePhoto } from "@/lib/data";
+import SiteMap from "@/components/SiteMap";
+import { deleteOrder, useLocations, useOrder, usePhoto } from "@/lib/data";
 
 function OrderDetail() {
   const { id } = useParams<{ id: string }>();
@@ -14,6 +15,8 @@ function OrderDetail() {
   const router = useRouter();
   const { order, loading, error } = useOrder(id);
   const photo = usePhoto(id, !!order?.hasPhoto);
+  const { locations } = useLocations();
+  const zoneId = order ? locations.find((l) => l.id === order.locationId)?.zoneId ?? null : null;
   const [deleting, setDeleting] = useState(false);
 
   if (loading)
@@ -117,8 +120,21 @@ function OrderDetail() {
           </dl>
         </div>
 
-        <div className="card stack sticky-panel" style={{ alignItems: "center" }}>
-          <QrLabel id={order.id} poNumber={order.poNumber} sub={order.locationName} />
+        <div className="stack sticky-panel">
+          {zoneId && (
+            <Link href={`/map?zone=${zoneId}`} className="card map-mini" aria-label={`Show ${order.locationName} on the site map`}>
+              <div className="row between" style={{ marginBottom: 10 }}>
+                <span className="zone-group-title">Where to find it</span>
+                <span className="small" style={{ color: "var(--accent)", fontWeight: 650 }}>
+                  Open map <ChevronRight size={14} style={{ verticalAlign: -2 }} />
+                </span>
+              </div>
+              <SiteMap compact selectedId={zoneId} />
+            </Link>
+          )}
+          <div className="card stack" style={{ alignItems: "center" }}>
+            <QrLabel id={order.id} poNumber={order.poNumber} sub={order.locationName} />
+          </div>
         </div>
       </div>
     </>
