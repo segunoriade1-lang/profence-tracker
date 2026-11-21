@@ -1,0 +1,31 @@
+rules_version = '2';
+
+// NOTE: The app has no login, so anyone with the app link can read and write.
+// Rules below only check that data has the right shape and size.
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /locations/{id} {
+      allow read, delete: if true;
+      allow create, update: if request.resource.data.name is string
+        && request.resource.data.name.size() > 0
+        && request.resource.data.name.size() <= 100;
+    }
+
+    match /orders/{id} {
+      allow read, delete: if true;
+      allow create, update: if request.resource.data.poNumber is string
+        && request.resource.data.poNumber.size() > 0
+        && request.resource.data.poNumber.size() <= 100
+        && request.resource.data.description is string
+        && request.resource.data.description.size() <= 5000;
+    }
+
+    // Full-size order photos (compressed JPEG as a data URL), one per order.
+    match /photos/{id} {
+      allow read, delete: if true;
+      allow create, update: if request.resource.data.data is string
+        && request.resource.data.data.matches('^data:image/jpeg;base64,.*')
+        && request.resource.data.data.size() <= 950000;
+    }
+  }
+}
