@@ -743,6 +743,13 @@ code { background: var(--surface-sunk); padding: 2px 6px; border-radius: 6px; fo
   pointer-events: none;
 }
 
+.area-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.area-actions .btn { padding: 9px 10px; }
+.pill-ghost { border-style: dashed; color: var(--muted); background: transparent; }
+.pill-ghost svg { color: var(--accent); }
+.pill-ghost:hover { border-style: solid; color: var(--accent-ink); background: var(--accent-soft); }
+.pill:disabled { opacity: 0.5; cursor: not-allowed; }
+
 .map-mini { display: block; color: inherit; padding: 16px; transition: border-color 0.15s, box-shadow 0.2s; }
 .map-mini:hover { text-decoration: none; border-color: var(--accent-soft-2); box-shadow: var(--shadow); }
 

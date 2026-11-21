@@ -3,18 +3,23 @@
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useMemo, useState } from "react";
-import { BoxIcon, ChevronRight, MapIcon, PinIcon, SearchIcon, XIcon } from "@/components/Icons";
+import { BoxIcon, ChevronRight, MapIcon, PinIcon, PlusIcon, SearchIcon, TrashIcon, XIcon } from "@/components/Icons";
 import SetupNotice from "@/components/Setup";
 import SiteMap from "@/components/SiteMap";
 import {
+  addZoneBack,
+  deleteLocation,
   matchesSearch,
   planMapSync,
+  removeFromMap,
   syncMapLocations,
   useLocations,
   useOrders,
   type InventoryOrder,
 } from "@/lib/data";
 import { ZONE_BY_ID, ZONES } from "@/lib/siteMap";
+
+const EMPTY = new Set<string>();
 
 function MapView() {
   const router = useRouter();
@@ -65,8 +70,56 @@ function MapView() {
   const highlightIds = term.trim() ? new Set(Object.keys(byZone)) : null;
   const offMap = matching.filter((o) => !zoneOfLocation.get(o.locationId));
 
+  // Areas are on the map only while a location is linked to them.
+  const visibleIds = useMemo(
+    () => new Set(locations.map((l) => l.zoneId).filter(Boolean) as string[]),
+    [locations]
+  );
+  const removedZones = ZONES.filter((z) => !visibleIds.has(z.id));
   const plan = planMapSync(locations);
-  const missing = plan.create.length + plan.link.length;
+  // First-time setup only: once any area is on the map, removed areas stay removed.
+  const missing = visibleIds.size === 0 ? plan.create.length + plan.link.length : 0;
+  const [busyZone, setBusyZone] = useState<string | null>(null);
+
+  async function onRemoveFromMap(locationId: string, label: string) {
+    if (!confirm(`Remove “${label}” from the map?\n\nThe location and its POs stay — it just won't be drawn on the map. You can add it back from “Removed areas”.`)) return;
+    setBusyZone(label);
+    try {
+      await removeFromMap(locationId);
+      selectZone(null);
+      setSyncMsg(`Removed “${label}” from the map.`);
+    } finally {
+      setBusyZone(null);
+    }
+  }
+
+  async function onDeleteArea(locationId: string, label: string, poCount: number) {
+    const warn = poCount
+      ? `Delete “${label}”?\n\n${poCount} PO${poCount === 1 ? " is" : "s are"} stored here. They'll keep the name “${label}” but won't appear on the map until you move them to another location.\n\nThis deletes the location and removes the area from the map.`
+      : `Delete “${label}”?\n\nThis deletes the location and removes the area from the map. You can add the area back later from “Removed areas”.`;
+    if (!confirm(warn)) return;
+    setBusyZone(label);
+    try {
+      await deleteLocation(locationId);
+      selectZone(null);
+      setSyncMsg(`Deleted “${label}”.`);
+    } finally {
+      setBusyZone(null);
+    }
+  }
+
+  async function onAddBack(zoneId: string) {
+    const z = ZONE_BY_ID.get(zoneId);
+    if (!z) return;
+    setBusyZone(z.label);
+    try {
+      const r = await addZoneBack(z, locations);
+      setSyncMsg("linked" in r ? `Added “${z.label}” back, linked to your “${r.linked}” location.` : `Added “${z.label}” back as a new location.`);
+      selectZone(zoneId);
+    } finally {
+      setBusyZone(null);
+    }
+  }
 
   async function onSync() {
     setSyncing(true);
@@ -81,7 +134,7 @@ function MapView() {
     }
   }
 
-  const zone = selectedZone ? ZONE_BY_ID.get(selectedZone) : undefined;
+  const zone = selectedZone && visibleIds.has(selectedZone) ? ZONE_BY_ID.get(selectedZone) : undefined;
   const zoneLocation = zone ? locations.find((l) => l.zoneId === zone.id) : undefined;
   const zoneOrders = zone ? byZone[zone.id] ?? [] : [];
   const busiest = ZONES.filter((z) => counts[z.id]).sort((a, b) => counts[b.id] - counts[a.id]);
@@ -116,8 +169,9 @@ function MapView() {
         <div className="card map-card">
           <SiteMap
             zoomable
+            visibleIds={locLoading ? EMPTY : visibleIds}
             counts={counts}
-            selectedId={selectedZone}
+            selectedId={zone ? zone.id : null}
             highlightIds={highlightIds}
             onSelect={(id) => selectZone(id)}
           />
@@ -177,6 +231,31 @@ function MapView() {
                   Open in search <ChevronRight size={16} />
                 </Link>
               )}
+              {zoneLocation && (
+                <>
+                  <hr className="divider" />
+                  <div className="zone-group-title">Manage this area</div>
+                  <div className="area-actions">
+                    <button
+                      className="btn"
+                      disabled={!!busyZone}
+                      onClick={() => onRemoveFromMap(zoneLocation.id, zone.label)}
+                    >
+                      <XIcon size={15} /> Remove from map
+                    </button>
+                    <button
+                      className="btn btn-danger"
+                      disabled={!!busyZone}
+                      onClick={() => onDeleteArea(zoneLocation.id, zoneLocation.name, (byZone[zone.id] ?? []).length)}
+                    >
+                      <TrashIcon size={15} /> Delete area
+                    </button>
+                  </div>
+                  <p className="hint">
+                    <b>Remove from map</b> keeps the location for picking and search. <b>Delete area</b> deletes the location too.
+                  </p>
+                </>
+              )}
             </>
           ) : term.trim() ? (
             <>
@@ -214,6 +293,26 @@ function MapView() {
                   ))}
                 </div>
               )}
+            </>
+          )}
+
+          {!zone && !locLoading && removedZones.length > 0 && visibleIds.size > 0 && (
+            <>
+              <hr className="divider" />
+              <div className="zone-group-title">Removed areas ({removedZones.length})</div>
+              <div className="pills">
+                {removedZones.map((z) => (
+                  <button
+                    key={z.id}
+                    className="pill pill-ghost"
+                    disabled={!!busyZone}
+                    onClick={() => onAddBack(z.id)}
+                    title={`Put ${z.label} back on the map`}
+                  >
+                    <PlusIcon size={14} /> {z.label}
+                  </button>
+                ))}
+              </div>
             </>
           )}
 

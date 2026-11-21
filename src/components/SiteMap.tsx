@@ -76,8 +76,11 @@ export default function SiteMap({
   onSelect,
   compact = false,
   zoomable = false,
+  visibleIds,
   className = "",
 }: {
+  /** Only these zones are drawn (areas removed from the map are left out). Omit to draw all. */
+  visibleIds?: Set<string> | null;
   /** Number of POs per zone id. */
   counts?: Record<string, number>;
   selectedId?: string | null;
@@ -193,7 +196,7 @@ export default function SiteMap({
         <polygon key={i} points={pts(l.points)} className={`map-landmark map-landmark-${l.kind}`} />
       ))}
 
-      {ZONES.map((zone) => {
+      {ZONES.filter((zone) => !visibleIds || visibleIds.has(zone.id)).map((zone) => {
         const count = counts[zone.id] ?? 0;
         const selected = selectedId === zone.id;
         const highlighted = highlightIds ? highlightIds.has(zone.id) : false;

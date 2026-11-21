@@ -4,6 +4,7 @@ import {
   addDoc,
   collection,
   deleteDoc,
+  deleteField,
   doc,
   onSnapshot,
   orderBy,
@@ -128,6 +129,27 @@ export async function syncMapLocations(locations: OfficeLocation[]) {
   }
   await batch.commit();
   return { linked: link.length, created: create.length };
+}
+
+/** Takes an area off the map but keeps the location (and its POs) for picking and search. */
+export async function removeFromMap(locationId: string) {
+  await updateDoc(doc(db(), "locations", locationId), { zoneId: deleteField() });
+}
+
+/**
+ * Puts a removed area back on the map: links a location with the same name if one
+ * exists without an area, otherwise creates a new location for it.
+ */
+export async function addZoneBack(zone: Zone, locations: OfficeLocation[]) {
+  const match =
+    locations.find((l) => !l.zoneId && zoneNameScore(l.name, zone) === 2) ??
+    locations.find((l) => !l.zoneId && zoneNameScore(l.name, zone) === 1);
+  if (match) {
+    await updateDoc(doc(db(), "locations", match.id), { zoneId: zone.id });
+    return { linked: match.name };
+  }
+  await addDoc(collection(db(), "locations"), { name: zone.label, zoneId: zone.id, createdAt: serverTimestamp() });
+  return { created: zone.label };
 }
 
 export async function renameLocation(id: string, name: string) {

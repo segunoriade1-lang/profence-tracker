@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useState } from "react";
 import { CheckIcon, EditIcon, MapIcon, PinIcon, PlusIcon, TrashIcon, XIcon } from "@/components/Icons";
 import SetupNotice from "@/components/Setup";
@@ -148,7 +149,12 @@ export default function LocationsPage() {
                     <div className="grow" style={{ minWidth: 0 }}>
                       <div className="loc-name">{l.name}</div>
                       <div className="loc-count">
-                        {count} item{count === 1 ? "" : "s"}
+                        {count} item{count === 1 ? "" : "s"} ·{" "}
+                        {l.zoneId ? (
+                          <Link href={`/map?zone=${l.zoneId}`}>on map</Link>
+                        ) : (
+                          <span>not on map</span>
+                        )}
                       </div>
                     </div>
                     <div className="loc-actions">

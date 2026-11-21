@@ -129,7 +129,11 @@ function OrderDetail() {
                   Open map <ChevronRight size={14} style={{ verticalAlign: -2 }} />
                 </span>
               </div>
-              <SiteMap compact selectedId={zoneId} />
+              <SiteMap
+                compact
+                selectedId={zoneId}
+                visibleIds={new Set(locations.map((l) => l.zoneId).filter(Boolean) as string[])}
+              />
             </Link>
           )}
           <div className="card stack" style={{ alignItems: "center" }}>
