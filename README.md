@@ -2,6 +2,8 @@
 
 Track where every inventory / purchase-order item is stored in the office, print a QR label for it, and find it again by searching.
 
+**Live:** https://profence-tracker.vercel.app
+
 ## Features
 
 - **Office locations**: add every storage place (shelves, bays, rooms) in bulk.
