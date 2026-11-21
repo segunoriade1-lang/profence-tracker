@@ -10,3 +10,6 @@ next-env.d.ts
 firebase-debug.log
 npm-debug.log*
 .claude/
+.vercel
+.env*
+!.env.example
