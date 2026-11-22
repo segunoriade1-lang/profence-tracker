@@ -8,6 +8,9 @@ import SetupNotice from "@/components/Setup";
 import SiteMap, { type MapDot } from "@/components/SiteMap";
 import {
   addZoneBack,
+  ageLevel,
+  SWEEP_DAYS,
+  isReleased,
   deleteLocation,
   matchesSearch,
   planMapSync,
@@ -51,9 +54,11 @@ function MapView() {
     return m;
   }, [locations]);
 
+  // Picked-up POs are off the map.
+  const stored = useMemo(() => orders.filter((o) => !isReleased(o)), [orders]);
   const matching = useMemo(
-    () => (term.trim() ? orders.filter((o) => matchesSearch(o, term)) : orders),
-    [orders, term]
+    () => (term.trim() ? stored.filter((o) => matchesSearch(o, term)) : stored),
+    [stored, term]
   );
 
   // POs per zone (respecting the search)
@@ -77,7 +82,7 @@ function MapView() {
     () =>
       matching.flatMap((o) => {
         const z = zoneOfLocation.get(o.locationId);
-        return z ? [{ id: o.id, zoneId: z, label: o.poNumber, pos: o.mapPos ?? null }] : [];
+        return z ? [{ id: o.id, zoneId: z, label: o.poNumber, pos: o.mapPos ?? null, age: ageLevel(o) }] : [];
       }),
     [matching, zoneOfLocation]
   );
@@ -220,7 +225,10 @@ function MapView() {
             <span><i className="lg-building" /> Main building</span>
             <span><i className="lg-shed" /> Sheds &amp; ramp</span>
             <span><i className="lg-yard" /> Yard</span>
-            <span><i className="lg-badge" /> A PO — drag it to its exact spot</span>
+            <span><i className="lg-dot" /> PO · under {SWEEP_DAYS / 2} days</span>
+            <span><i className="lg-dot lg-aging" /> {SWEEP_DAYS / 2}–{SWEEP_DAYS} days</span>
+            <span><i className="lg-dot lg-stale" /> {SWEEP_DAYS}+ days · <Link href="/sweep">sweep</Link></span>
+            <span className="muted">Drag a dot to its exact spot</span>
           </div>
         </div>
 

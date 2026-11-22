@@ -19,6 +19,8 @@ export type MapDot = {
   zoneId: string;
   label: string;
   pos?: { x: number; y: number } | null;
+  /** Colours the dot by how long it's been sitting there. */
+  age?: "fresh" | "aging" | "stale";
 };
 
 const pts = (p: [number, number][]) => p.map(([x, y]) => `${x},${y}`).join(" ");
@@ -408,7 +410,7 @@ export default function SiteMap({
             return (
               <g
                 key={dot.id}
-                className={`po-dot ${active ? "is-active" : ""} ${dragging ? "is-dragging" : ""} ${onDotMove ? "is-movable" : ""}`}
+                className={`po-dot age-${dot.age ?? "fresh"} ${active ? "is-active" : ""} ${dragging ? "is-dragging" : ""} ${onDotMove ? "is-movable" : ""}`}
                 transform={`translate(${at.x} ${at.y})`}
                 onPointerDown={(e) => onDotPointerDown(e, dot, zone)}
                 onPointerMove={onDotPointerMove}

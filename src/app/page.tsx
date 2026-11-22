@@ -3,10 +3,10 @@
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useMemo, useRef, useState } from "react";
-import { BoxIcon, ChevronRight, MapIcon, PinIcon, PlusIcon, SearchIcon } from "@/components/Icons";
+import { BoxIcon, CheckIcon, ChevronRight, MapIcon, PinIcon, PlusIcon, SearchIcon } from "@/components/Icons";
 import Pagination from "@/components/Pagination";
 import SetupNotice from "@/components/Setup";
-import { matchesSearch, useLocations, useOrders } from "@/lib/data";
+import { ageDays, isReleased, matchesSearch, SWEEP_DAYS, useLocations, useOrders } from "@/lib/data";
 
 const PAGE_SIZE = 30;
 
@@ -20,6 +20,8 @@ function Home() {
   // Search, filter and page live in the URL so Back from an order returns here.
   const [term, setTerm] = useState(params.get("q") ?? "");
   const locationId = params.get("loc") ?? "";
+  // "In stock" (default) or "Released" (picked up) tab
+  const showReleased = params.get("view") === "released";
   const requestedPage = Math.max(1, parseInt(params.get("page") ?? "1", 10) || 1);
   const listTop = useRef<HTMLDivElement>(null);
 
@@ -41,13 +43,32 @@ function Home() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [term]);
 
+  const inStock = useMemo(() => orders.filter((o) => !isReleased(o)), [orders]);
+  const released = useMemo(
+    () =>
+      orders
+        .filter(isReleased)
+        .sort((a, b) => (b.releasedAt?.toMillis?.() ?? Date.now()) - (a.releasedAt?.toMillis?.() ?? Date.now())),
+    [orders]
+  );
+  const dueCount = inStock.filter((o) => ageDays(o) >= SWEEP_DAYS).length;
+
   const results = useMemo(
     () =>
-      orders.filter(
+      (showReleased ? released : inStock).filter(
         (o) => (!locationId || o.locationId === locationId) && matchesSearch(o, term)
       ),
-    [orders, term, locationId]
+    [inStock, released, showReleased, term, locationId]
   );
+
+  function tabHref(view: "stock" | "released") {
+    const sp = new URLSearchParams(params.toString());
+    sp.delete("page");
+    if (view === "released") sp.set("view", "released");
+    else sp.delete("view");
+    const qs = sp.toString();
+    return qs ? `${pathname}?${qs}` : pathname;
+  }
 
   const totalPages = Math.max(1, Math.ceil(results.length / PAGE_SIZE));
   const page = Math.min(requestedPage, totalPages);
@@ -106,8 +127,17 @@ function Home() {
         {!loading && orders.length > 0 && (
           <div className="stats">
             <span className="stat">
-              <BoxIcon size={15} /> <b>{orders.length}</b> order{orders.length === 1 ? "" : "s"}
+              <BoxIcon size={15} /> <b>{inStock.length}</b> in stock
             </span>
+            {dueCount > 0 ? (
+              <Link href="/sweep" className="stat stat-link is-due">
+                <SearchIcon size={15} /> <b>{dueCount}</b> due for a sweep <ChevronRight size={14} />
+              </Link>
+            ) : (
+              <Link href="/sweep" className="stat stat-link">
+                <CheckIcon size={15} /> Sweep up to date
+              </Link>
+            )}
             <span className="stat">
               <MapIcon size={15} /> <b>{locations.length}</b> location{locations.length === 1 ? "" : "s"}
             </span>
@@ -117,10 +147,20 @@ function Home() {
 
       <div className="list-head" ref={listTop} style={{ scrollMarginTop: 90 }}>
         <div>
+          <div className="seg" role="tablist" aria-label="Order status" style={{ marginBottom: 8 }}>
+            <Link href={tabHref("stock")} className={!showReleased ? "on" : ""} role="tab" aria-selected={!showReleased} scroll={false}>
+              In stock <span className="count-badge">{inStock.length}</span>
+            </Link>
+            <Link href={tabHref("released")} className={showReleased ? "on" : ""} role="tab" aria-selected={showReleased} scroll={false}>
+              Released <span className="count-badge">{released.length}</span>
+            </Link>
+          </div>
           <h2 className="h2">
             {filtering
               ? `${results.length} result${results.length === 1 ? "" : "s"}`
-              : "All orders"}
+              : showReleased
+                ? "Picked up, newest first"
+                : "All orders in stock"}
           </h2>
           {results.length > PAGE_SIZE && (
             <div className="muted small">
@@ -152,6 +192,16 @@ function Home() {
                 <Link href="/orders/new">create your first inventory order</Link>.
               </span>
             </>
+          ) : showReleased && released.length === 0 ? (
+            <>
+              <strong>Nothing picked up yet</strong>
+              <span>When a PO is given out, open it (or scan its QR) and tap “Mark as picked up”.</span>
+            </>
+          ) : !showReleased && inStock.length === 0 ? (
+            <>
+              <strong>Nothing in stock</strong>
+              <span>Every PO has been picked up. <Link href="/orders/new">Add a new one</Link>.</span>
+            </>
           ) : (
             <>
               <strong>No matches</strong>
@@ -178,10 +228,17 @@ function Home() {
                     {o.itemName && <div className="order-title">{o.itemName}</div>}
                     {o.description && <div className="order-desc">{o.description}</div>}
                   </div>
-                  <span className="loc-chip">
-                    <PinIcon size={14} />
-                    {o.locationName || "No location"}
-                  </span>
+                  {isReleased(o) ? (
+                    <span className="released-chip" title={`Was at ${o.locationName}`}>
+                      <CheckIcon size={14} />
+                      Picked up{o.releasedAt?.toDate ? ` ${o.releasedAt.toDate().toLocaleDateString(undefined, { day: "numeric", month: "short" })}` : ""}
+                    </span>
+                  ) : (
+                    <span className="loc-chip">
+                      <PinIcon size={14} />
+                      {o.locationName || "No location"}
+                    </span>
+                  )}
                   <ChevronRight className="chev" size={20} />
                 </Link>
               </li>

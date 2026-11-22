@@ -4,11 +4,13 @@ import Link from "next/link";
 import { useState } from "react";
 import { CheckIcon, EditIcon, MapIcon, PinIcon, PlusIcon, TrashIcon, XIcon } from "@/components/Icons";
 import SetupNotice from "@/components/Setup";
-import { addLocations, deleteLocation, renameLocation, useLocations, useOrders } from "@/lib/data";
+import { addLocations, deleteLocation, isReleased, renameLocation, useLocations, useOrders } from "@/lib/data";
 
 export default function LocationsPage() {
   const { locations, loading, error } = useLocations();
-  const { orders } = useOrders();
+  const { orders: allOrders } = useOrders();
+  // Only POs still in stock count toward a location.
+  const orders = allOrders.filter((o) => !isReleased(o));
   const [text, setText] = useState("");
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);

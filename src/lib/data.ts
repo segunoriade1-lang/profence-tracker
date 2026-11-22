@@ -39,9 +39,58 @@ export type InventoryOrder = {
   hasPhoto: boolean;
   /** Exact spot inside its map area (site-map coordinates). Missing = auto-placed. */
   mapPos?: { x: number; y: number } | null;
+  /** "released" once picked up / given out. Missing = still stored. */
+  status?: "stored" | "released";
+  releasedAt?: Timestamp | null;
+  releaseNote?: string | null;
+  /** Last time someone confirmed in a sweep that it's still there. */
+  lastConfirmedAt?: Timestamp | null;
   createdAt?: Timestamp | null;
   updatedAt?: Timestamp | null;
 };
+
+/* ---------- Release & sweep ---------- */
+
+/** Stored POs older than this (since added or last confirmed) show up in the sweep. */
+export const SWEEP_DAYS = 14;
+const DAY = 86_400_000;
+
+export const isReleased = (o: InventoryOrder) => o.status === "released";
+
+/** Days since the PO was added or last confirmed still there. */
+export function ageDays(o: InventoryOrder, now = Date.now()) {
+  const added = o.createdAt?.toMillis?.() ?? now;
+  const confirmed = o.lastConfirmedAt?.toMillis?.() ?? 0;
+  return Math.max(0, (now - Math.max(added, confirmed)) / DAY);
+}
+
+/** fresh: under half the sweep period · aging: under the sweep period · stale: due for a sweep. */
+export function ageLevel(o: InventoryOrder): "fresh" | "aging" | "stale" {
+  const d = ageDays(o);
+  return d >= SWEEP_DAYS ? "stale" : d >= SWEEP_DAYS / 2 ? "aging" : "fresh";
+}
+
+export async function releaseOrder(id: string, note = "") {
+  await updateDoc(doc(db(), "orders", id), {
+    status: "released",
+    releasedAt: serverTimestamp(),
+    releaseNote: note.trim() ? note.trim().slice(0, 500) : null,
+  });
+}
+
+/** Puts a released PO back exactly where it was (its map spot is kept). */
+export async function undoRelease(id: string) {
+  await updateDoc(doc(db(), "orders", id), {
+    status: "stored",
+    releasedAt: deleteField(),
+    releaseNote: deleteField(),
+  });
+}
+
+/** Sweep: "still here" — resets its age. */
+export async function confirmStillHere(id: string) {
+  await updateDoc(doc(db(), "orders", id), { lastConfirmedAt: serverTimestamp() });
+}
 
 /** Saves where a PO's dot was dragged to on the site map. */
 export async function setOrderMapPos(id: string, x: number, y: number) {

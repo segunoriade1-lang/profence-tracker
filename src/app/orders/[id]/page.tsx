@@ -5,9 +5,10 @@ import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useState } from "react";
 import { ArrowLeft, CheckIcon, ChevronRight, EditIcon, PinIcon, SearchIcon, TrashIcon } from "@/components/Icons";
 import QrLabel from "@/components/QrLabel";
+import ReleaseCard from "@/components/ReleaseCard";
 import SetupNotice from "@/components/Setup";
 import SiteMap from "@/components/SiteMap";
-import { deleteOrder, setOrderMapPos, useLocations, useOrder, usePhoto } from "@/lib/data";
+import { ageLevel, deleteOrder, isReleased, setOrderMapPos, useLocations, useOrder, usePhoto } from "@/lib/data";
 
 function OrderDetail() {
   const { id } = useParams<{ id: string }>();
@@ -47,6 +48,7 @@ function OrderDetail() {
     router.push("/");
   }
 
+  const released = isReleased(order);
   const created = order.createdAt?.toDate?.();
   const fmt = (d: Date) =>
     d.toLocaleString(undefined, { day: "numeric", month: "short", year: "numeric", hour: "numeric", minute: "2-digit" });
@@ -72,12 +74,14 @@ function OrderDetail() {
         </div>
       </div>
 
-      <div className="location-hero">
+      <ReleaseCard order={order} />
+
+      <div className={`location-hero ${released ? "is-released" : ""}`}>
         <span className="location-hero-icon">
           <PinIcon size={26} />
         </span>
         <div>
-          <div className="location-hero-label">Stored at</div>
+          <div className="location-hero-label">{released ? "Was stored at" : "Stored at"}</div>
           <div className="location-hero-name">{order.locationName || "No location set"}</div>
         </div>
       </div>
@@ -125,7 +129,7 @@ function OrderDetail() {
           {zoneId && (
             <div className="card map-mini">
               <div className="row between" style={{ marginBottom: 10 }}>
-                <span className="zone-group-title">Where to find it</span>
+                <span className="zone-group-title">{released ? "Where it was" : "Where to find it"}</span>
                 <Link href={`/map?zone=${zoneId}`} className="small" style={{ fontWeight: 650 }}>
                   Open map <ChevronRight size={14} style={{ verticalAlign: -2 }} />
                 </Link>
@@ -134,9 +138,9 @@ function OrderDetail() {
                 compact
                 selectedId={zoneId}
                 visibleIds={new Set(locations.map((l) => l.zoneId).filter(Boolean) as string[])}
-                dots={[{ id: order.id, zoneId, label: order.poNumber, pos: order.mapPos ?? null }]}
+                dots={[{ id: order.id, zoneId, label: order.poNumber, pos: order.mapPos ?? null, age: ageLevel(order) }]}
                 activeDotId={order.id}
-                onDotMove={async (id, x, y) => {
+                onDotMove={released ? undefined : async (id, x, y) => {
                   setPosMsg(null);
                   try {
                     await setOrderMapPos(id, x, y);
@@ -147,7 +151,9 @@ function OrderDetail() {
                 }}
               />
               <p className="hint" style={{ marginTop: 10 }}>
-                {posMsg ?? (order.mapPos ? "Drag the dot to move it." : "Drag the dot to the exact spot this was dropped.")}
+                {released
+                  ? "Where it was before it was picked up."
+                  : posMsg ?? (order.mapPos ? "Drag the dot to move it." : "Drag the dot to the exact spot this was dropped.")}
               </p>
             </div>
           )}
