@@ -7,7 +7,7 @@ import { ArrowLeft, CheckIcon, ChevronRight, EditIcon, PinIcon, SearchIcon, Tras
 import QrLabel from "@/components/QrLabel";
 import SetupNotice from "@/components/Setup";
 import SiteMap from "@/components/SiteMap";
-import { deleteOrder, useLocations, useOrder, usePhoto } from "@/lib/data";
+import { deleteOrder, setOrderMapPos, useLocations, useOrder, usePhoto } from "@/lib/data";
 
 function OrderDetail() {
   const { id } = useParams<{ id: string }>();
@@ -18,6 +18,7 @@ function OrderDetail() {
   const { locations } = useLocations();
   const zoneId = order ? locations.find((l) => l.id === order.locationId)?.zoneId ?? null : null;
   const [deleting, setDeleting] = useState(false);
+  const [posMsg, setPosMsg] = useState<string | null>(null);
 
   if (loading)
     return (
@@ -122,19 +123,33 @@ function OrderDetail() {
 
         <div className="stack sticky-panel">
           {zoneId && (
-            <Link href={`/map?zone=${zoneId}`} className="card map-mini" aria-label={`Show ${order.locationName} on the site map`}>
+            <div className="card map-mini">
               <div className="row between" style={{ marginBottom: 10 }}>
                 <span className="zone-group-title">Where to find it</span>
-                <span className="small" style={{ color: "var(--accent)", fontWeight: 650 }}>
+                <Link href={`/map?zone=${zoneId}`} className="small" style={{ fontWeight: 650 }}>
                   Open map <ChevronRight size={14} style={{ verticalAlign: -2 }} />
-                </span>
+                </Link>
               </div>
               <SiteMap
                 compact
                 selectedId={zoneId}
                 visibleIds={new Set(locations.map((l) => l.zoneId).filter(Boolean) as string[])}
+                dots={[{ id: order.id, zoneId, label: order.poNumber, pos: order.mapPos ?? null }]}
+                activeDotId={order.id}
+                onDotMove={async (id, x, y) => {
+                  setPosMsg(null);
+                  try {
+                    await setOrderMapPos(id, x, y);
+                    setPosMsg("Spot saved");
+                  } catch (e) {
+                    setPosMsg(`Couldn't save: ${(e as Error).message}`);
+                  }
+                }}
               />
-            </Link>
+              <p className="hint" style={{ marginTop: 10 }}>
+                {posMsg ?? (order.mapPos ? "Drag the dot to move it." : "Drag the dot to the exact spot this was dropped.")}
+              </p>
+            </div>
           )}
           <div className="card stack" style={{ alignItems: "center" }}>
             <QrLabel id={order.id} poNumber={order.poNumber} sub={order.locationName} />

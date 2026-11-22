@@ -37,9 +37,18 @@ export type InventoryOrder = {
   /** Small JPEG data URL for lists; the full photo lives in photos/{id}. */
   photoThumb: string | null;
   hasPhoto: boolean;
+  /** Exact spot inside its map area (site-map coordinates). Missing = auto-placed. */
+  mapPos?: { x: number; y: number } | null;
   createdAt?: Timestamp | null;
   updatedAt?: Timestamp | null;
 };
+
+/** Saves where a PO's dot was dragged to on the site map. */
+export async function setOrderMapPos(id: string, x: number, y: number) {
+  await updateDoc(doc(db(), "orders", id), {
+    mapPos: { x: Math.round(x * 10) / 10, y: Math.round(y * 10) / 10 },
+  });
+}
 
 /* ---------- Office locations ---------- */
 

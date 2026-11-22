@@ -5,13 +5,14 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useMemo, useState } from "react";
 import { BoxIcon, ChevronRight, MapIcon, PinIcon, PlusIcon, SearchIcon, TrashIcon, XIcon } from "@/components/Icons";
 import SetupNotice from "@/components/Setup";
-import SiteMap from "@/components/SiteMap";
+import SiteMap, { type MapDot } from "@/components/SiteMap";
 import {
   addZoneBack,
   deleteLocation,
   matchesSearch,
   planMapSync,
   removeFromMap,
+  setOrderMapPos,
   syncMapLocations,
   useLocations,
   useOrders,
@@ -30,6 +31,8 @@ function MapView() {
 
   const selectedZone = params.get("zone");
   const [term, setTerm] = useState("");
+  const [activeDot, setActiveDot] = useState<string | null>(null);
+  const [moveError, setMoveError] = useState<string | null>(null);
   const [syncing, setSyncing] = useState(false);
   const [syncMsg, setSyncMsg] = useState<string | null>(null);
 
@@ -68,6 +71,39 @@ function MapView() {
     [byZone]
   );
   const highlightIds = term.trim() ? new Set(Object.keys(byZone)) : null;
+
+  // Every PO (matching the search) as a pulsing dot inside its area.
+  const dots: MapDot[] = useMemo(
+    () =>
+      matching.flatMap((o) => {
+        const z = zoneOfLocation.get(o.locationId);
+        return z ? [{ id: o.id, zoneId: z, label: o.poNumber, pos: o.mapPos ?? null }] : [];
+      }),
+    [matching, zoneOfLocation]
+  );
+
+  function openZone(zoneId: string) {
+    const sp = new URLSearchParams(params.toString());
+    sp.set("zone", zoneId);
+    router.replace(`${pathname}?${sp.toString()}`, { scroll: false });
+  }
+
+  async function onDotMove(id: string, x: number, y: number) {
+    setActiveDot(id);
+    setMoveError(null);
+    try {
+      await setOrderMapPos(id, x, y);
+    } catch (e) {
+      setMoveError(`Couldn't save the new spot: ${(e as Error).message}`);
+    }
+  }
+
+  function onDotClick(id: string) {
+    setActiveDot(id);
+    const o = orders.find((x) => x.id === id);
+    const z = o && zoneOfLocation.get(o.locationId);
+    if (z && z !== selectedZone) openZone(z);
+  }
   const offMap = matching.filter((o) => !zoneOfLocation.get(o.locationId));
 
   // Areas are on the map only while a location is linked to them.
@@ -164,6 +200,7 @@ function MapView() {
         </div>
       )}
       {syncMsg && <div className="success">{syncMsg}</div>}
+      {moveError && <p className="error" style={{ marginBottom: 16 }}>{moveError}</p>}
 
       <div className="map-layout">
         <div className="card map-card">
@@ -174,12 +211,16 @@ function MapView() {
             selectedId={zone ? zone.id : null}
             highlightIds={highlightIds}
             onSelect={(id) => selectZone(id)}
+            dots={dots}
+            activeDotId={activeDot}
+            onDotMove={onDotMove}
+            onDotClick={onDotClick}
           />
           <div className="map-legend">
             <span><i className="lg-building" /> Main building</span>
             <span><i className="lg-shed" /> Sheds &amp; ramp</span>
             <span><i className="lg-yard" /> Yard</span>
-            <span><i className="lg-badge" /> Number of POs</span>
+            <span><i className="lg-badge" /> A PO — drag it to its exact spot</span>
           </div>
         </div>
 
@@ -222,7 +263,7 @@ function MapView() {
               ) : (
                 <ul className="panel-list">
                   {zoneOrders.map((o) => (
-                    <OrderItem key={o.id} order={o} />
+                    <OrderItem key={o.id} order={o} active={activeDot === o.id} onHover={setActiveDot} />
                   ))}
                 </ul>
               )}
@@ -271,7 +312,7 @@ function MapView() {
                     </button>
                     <ul className="panel-list">
                       {byZone[z.id].slice(0, 5).map((o) => (
-                        <OrderItem key={o.id} order={o} />
+                        <OrderItem key={o.id} order={o} active={activeDot === o.id} onHover={setActiveDot} />
                       ))}
                     </ul>
                   </div>
@@ -322,7 +363,7 @@ function MapView() {
               <div className="zone-group-title">Not on the map ({offMap.length})</div>
               <ul className="panel-list">
                 {offMap.slice(0, 5).map((o) => (
-                  <OrderItem key={o.id} order={o} />
+                  <OrderItem key={o.id} order={o} active={activeDot === o.id} onHover={setActiveDot} />
                 ))}
               </ul>
             </>
@@ -333,10 +374,18 @@ function MapView() {
   );
 }
 
-function OrderItem({ order }: { order: InventoryOrder }) {
+function OrderItem({
+  order,
+  active,
+  onHover,
+}: {
+  order: InventoryOrder;
+  active?: boolean;
+  onHover?: (id: string) => void;
+}) {
   return (
-    <li>
-      <Link href={`/orders/${order.id}`} className="panel-item">
+    <li onMouseEnter={() => onHover?.(order.id)} onFocus={() => onHover?.(order.id)}>
+      <Link href={`/orders/${order.id}`} className={`panel-item ${active ? "is-active" : ""}`}>
         {order.photoThumb ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img className="thumb" src={order.photoThumb} alt="" />

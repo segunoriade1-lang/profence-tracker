@@ -1,7 +1,25 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { LANDMARKS, SITE_OUTLINE, VIEWBOX, ZONE_BY_ID, ZONES, bbox, type Zone } from "@/lib/siteMap";
+import {
+  LANDMARKS,
+  SITE_OUTLINE,
+  VIEWBOX,
+  ZONE_BY_ID,
+  ZONES,
+  bbox,
+  clampToZone,
+  resolveSpot,
+  type Zone,
+} from "@/lib/siteMap";
+
+/** A PO drawn as a pulsing dot inside its area. */
+export type MapDot = {
+  id: string;
+  zoneId: string;
+  label: string;
+  pos?: { x: number; y: number } | null;
+};
 
 const pts = (p: [number, number][]) => p.map(([x, y]) => `${x},${y}`).join(" ");
 
@@ -77,8 +95,19 @@ export default function SiteMap({
   compact = false,
   zoomable = false,
   visibleIds,
+  dots,
+  activeDotId,
+  onDotMove,
+  onDotClick,
   className = "",
 }: {
+  /** POs to draw as pulsing dots. */
+  dots?: MapDot[];
+  /** The dot to emphasise (bigger, with its PO number shown). */
+  activeDotId?: string | null;
+  /** Makes dots draggable; called with the spot a dot was dropped at (kept inside its area). */
+  onDotMove?: (id: string, x: number, y: number) => void;
+  onDotClick?: (id: string) => void;
   /** Only these zones are drawn (areas removed from the map are left out). Omit to draw all. */
   visibleIds?: Set<string> | null;
   /** Number of POs per zone id. */
@@ -99,6 +128,100 @@ export default function SiteMap({
   const suppressClick = useRef(false);
 
   const zoomed = view.w < FULL.w - 1;
+
+  // Size of the drawn map in screen pixels, so dots stay the same on-screen size at any zoom.
+  const [px, setPx] = useState({ w: 600, h: 760 });
+  useEffect(() => {
+    const el = svgRef.current;
+    if (!el) return;
+    const ro = new ResizeObserver(() => setPx({ w: el.clientWidth || 600, h: el.clientHeight || 760 }));
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+  const unitsPerPx = Math.max(view.w / px.w, view.h / px.h);
+
+  // Dot being dragged: its live position until it's dropped and saved.
+  const [dragDot, setDragDot] = useState<{ id: string; x: number; y: number } | null>(null);
+  const dotDrag = useRef<{ id: string; zone: Zone; moved: boolean; startX: number; startY: number } | null>(null);
+  const [justDropped, setJustDropped] = useState<Record<string, { x: number; y: number }>>({});
+
+  function toSvgPoint(clientX: number, clientY: number) {
+    const svg = svgRef.current;
+    const ctm = svg?.getScreenCTM();
+    if (!svg || !ctm) return null;
+    const p = svg.createSVGPoint();
+    p.x = clientX;
+    p.y = clientY;
+    const r = p.matrixTransform(ctm.inverse());
+    return { x: r.x, y: r.y };
+  }
+
+  function onDotPointerDown(e: React.PointerEvent<SVGGElement>, dot: MapDot, zone: Zone) {
+    e.stopPropagation(); // don't start panning the map
+    if (!onDotMove && !onDotClick) return;
+    dotDrag.current = { id: dot.id, zone, moved: false, startX: e.clientX, startY: e.clientY };
+    if (onDotMove) (e.currentTarget as Element).setPointerCapture(e.pointerId);
+  }
+  function onDotPointerMove(e: React.PointerEvent<SVGGElement>) {
+    const d = dotDrag.current;
+    if (!d || !onDotMove) return;
+    if (!d.moved && Math.hypot(e.clientX - d.startX, e.clientY - d.startY) < 4) return;
+    d.moved = true;
+    const p = toSvgPoint(e.clientX, e.clientY);
+    if (!p) return;
+    const c = clampToZone(p, d.zone, Math.min(4, unitsPerPx * 6));
+    setDragDot({ id: d.id, x: c.x, y: c.y });
+  }
+  function onDotPointerUp(e: React.PointerEvent<SVGGElement>) {
+    const d = dotDrag.current;
+    dotDrag.current = null;
+    if (!d) return;
+    e.stopPropagation();
+    if (d.moved && dragDot && dragDot.id === d.id && onDotMove) {
+      setJustDropped((m) => ({ ...m, [d.id]: { x: dragDot.x, y: dragDot.y } }));
+      onDotMove(d.id, dragDot.x, dragDot.y);
+    } else if (!d.moved && onDotClick) {
+      onDotClick(d.id);
+    }
+    setDragDot(null);
+  }
+  function onDotKeyDown(e: React.KeyboardEvent<SVGGElement>, dot: MapDot, zone: Zone, at: { x: number; y: number }) {
+    const step = unitsPerPx * (e.shiftKey ? 20 : 5);
+    const delta: Record<string, [number, number]> = {
+      ArrowLeft: [-step, 0],
+      ArrowRight: [step, 0],
+      ArrowUp: [0, -step],
+      ArrowDown: [0, step],
+    };
+    if (e.key === "Enter" && onDotClick) {
+      e.preventDefault();
+      onDotClick(dot.id);
+      return;
+    }
+    const dd = delta[e.key];
+    if (!dd || !onDotMove) return;
+    e.preventDefault();
+    const c = clampToZone({ x: at.x + dd[0], y: at.y + dd[1] }, zone, Math.min(4, unitsPerPx * 6));
+    setJustDropped((m) => ({ ...m, [dot.id]: c }));
+    onDotMove(dot.id, c.x, c.y);
+  }
+
+  // Forget optimistic positions once the saved position comes back from the database.
+  useEffect(() => {
+    if (!dots) return;
+    setJustDropped((m) => {
+      let changed = false;
+      const next = { ...m };
+      for (const id of Object.keys(m)) {
+        const d = dots.find((x) => x.id === id);
+        if (!d || (d.pos && Math.abs(d.pos.x - m[id].x) < 0.2 && Math.abs(d.pos.y - m[id].y) < 0.2)) {
+          delete next[id];
+          changed = true;
+        }
+      }
+      return changed ? next : m;
+    });
+  }, [dots]);
 
   function clamp(v: Box): Box {
     const w = Math.min(FULL.w, Math.max(160, v.w));
@@ -259,7 +382,7 @@ export default function SiteMap({
                 )}
               </text>
             )}
-            {count > 0 && !compact && (
+            {count > 0 && !compact && !dots && (
               <g className="zone-badge" transform={`translate(${b.x + b.w - 4} ${b.y + 4}) scale(${badgeScale})`}>
                 <circle r={count > 99 ? 17 : 14} />
                 <text textAnchor="middle" dominantBaseline="central" fontSize={count > 99 ? 12 : 14}>
@@ -270,6 +393,60 @@ export default function SiteMap({
           </g>
         );
       })}
+
+      {dots && (
+        <g className="po-dots">
+          {dots.map((dot) => {
+            const zone = ZONE_BY_ID.get(dot.zoneId);
+            if (!zone || (visibleIds && !visibleIds.has(zone.id))) return null;
+            const live = dragDot?.id === dot.id ? dragDot : justDropped[dot.id];
+            const at = live ?? resolveSpot(dot.id, zone, dot.pos);
+            const active = activeDotId === dot.id;
+            const dragging = dragDot?.id === dot.id;
+            const r = unitsPerPx * (active ? 7.5 : 5.5);
+            const fs = unitsPerPx * 12;
+            return (
+              <g
+                key={dot.id}
+                className={`po-dot ${active ? "is-active" : ""} ${dragging ? "is-dragging" : ""} ${onDotMove ? "is-movable" : ""}`}
+                transform={`translate(${at.x} ${at.y})`}
+                onPointerDown={(e) => onDotPointerDown(e, dot, zone)}
+                onPointerMove={onDotPointerMove}
+                onPointerUp={onDotPointerUp}
+                onPointerCancel={() => {
+                  dotDrag.current = null;
+                  setDragDot(null);
+                }}
+                onClick={(e) => e.stopPropagation()}
+                onKeyDown={(e) => onDotKeyDown(e, dot, zone, at)}
+                tabIndex={onDotMove || onDotClick ? 0 : undefined}
+                role={onDotMove || onDotClick ? "button" : undefined}
+                aria-label={`${dot.label} in ${zone.label}${onDotMove ? ". Drag or use arrow keys to move" : ""}`}
+              >
+                <title>{`${dot.label} · ${zone.label}`}</title>
+                {/* bigger invisible hit area for fingers */}
+                <circle className="po-dot-hit" r={unitsPerPx * 16} />
+                <circle className="po-dot-pulse" r={r} />
+                <circle className="po-dot-core" r={r} strokeWidth={unitsPerPx * 2} />
+                {(active || dragging) && (
+                  <g className="po-dot-tag" transform={`translate(0 ${-(r + unitsPerPx * 8)})`}>
+                    <rect
+                      x={-(dot.label.length * fs * 0.33 + unitsPerPx * 8)}
+                      y={-fs * 1.25}
+                      width={dot.label.length * fs * 0.66 + unitsPerPx * 16}
+                      height={fs * 1.7}
+                      rx={fs * 0.5}
+                    />
+                    <text textAnchor="middle" y={-fs * 0.4} fontSize={fs} dominantBaseline="central">
+                      {dot.label}
+                    </text>
+                  </g>
+                )}
+              </g>
+            );
+          })}
+        </g>
+      )}
     </svg>
   );
 

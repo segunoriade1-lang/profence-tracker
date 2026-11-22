@@ -708,6 +708,29 @@ code { background: var(--surface-sunk); padding: 2px 6px; border-radius: 6px; fo
 .zone.is-selected .zone-badge circle { fill: #fff; stroke: var(--accent); }
 .zone.is-selected .zone-badge text { fill: var(--accent); }
 
+/* PO dots */
+.po-dot { outline: none; }
+.po-dot.is-movable { cursor: grab; touch-action: none; }
+.po-dot.is-dragging { cursor: grabbing; }
+.po-dot-hit { fill: transparent; }
+.po-dot-core { fill: var(--accent); stroke: #fff; }
+.po-dot-pulse {
+  fill: var(--accent); opacity: 0.55; pointer-events: none;
+  transform-box: fill-box; transform-origin: center;
+  animation: po-pulse 1.9s cubic-bezier(0.2, 0.6, 0.35, 1) infinite;
+}
+.po-dot.is-active .po-dot-core { fill: #f43f5e; }
+.po-dot.is-active .po-dot-pulse { fill: #f43f5e; animation-duration: 1.3s; }
+.po-dot.is-dragging .po-dot-pulse { animation: none; opacity: 0; }
+.po-dot:focus-visible .po-dot-core { stroke: var(--accent-ink); }
+.po-dot-tag rect { fill: var(--text); opacity: 0.92; }
+.po-dot-tag text { fill: var(--bg); font-family: var(--font-mono), ui-monospace, monospace; font-weight: 700; pointer-events: none; }
+@keyframes po-pulse {
+  0% { transform: scale(1); opacity: 0.55; }
+  80%, 100% { transform: scale(3.2); opacity: 0; }
+}
+.panel-item.is-active { border-color: #f43f5e; box-shadow: 0 0 0 3px rgba(244, 63, 94, 0.15); }
+
 .map-layout { display: grid; grid-template-columns: 1fr; gap: 20px; align-items: start; }
 @media (min-width: 900px) { .map-layout { grid-template-columns: minmax(0, 1fr) 380px; } .map-panel { position: sticky; top: 88px; } }
 .map-card { padding: 14px; }
