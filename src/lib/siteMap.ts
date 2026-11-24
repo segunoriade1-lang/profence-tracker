@@ -181,6 +181,37 @@ export function zoneNameScore(name: string, zone: Zone) {
   return (zone.aliases ?? []).some((a) => norm(a) === n) ? 1 : 0;
 }
 
+/* ---------- Location groups (how lists and filters are organised) ---------- */
+
+export type LocGroup = "yard" | "bay" | "office" | "other";
+
+/** Which group each map area belongs to. Areas not listed here are Yard. */
+const GROUP_OF: Record<string, LocGroup> = {
+  "fittings-bay": "bay",
+  "fabrication-bay": "bay",
+  "welding-bay": "bay",
+  "amys-office": "office",
+  "emmanuel-office": "office",
+  "jeffs-office": "office",
+  "marks-office": "office",
+  boardroom: "office",
+  lockup: "office",
+};
+
+export const GROUP_ORDER: LocGroup[] = ["yard", "bay", "office", "other"];
+export const GROUP_LABEL: Record<LocGroup, string> = {
+  yard: "Yard",
+  bay: "Bays",
+  office: "Offices",
+  other: "Other",
+};
+
+/** Group for a location: by its map area, or "other" if it isn't on the map. */
+export function groupOf(zoneId?: string | null): LocGroup {
+  if (!zoneId || !ZONE_BY_ID.has(zoneId)) return "other";
+  return GROUP_OF[zoneId] ?? "yard";
+}
+
 export const KIND_LABEL: Record<ZoneKind, string> = {
   building: "Main building",
   shed: "Sheds & ramps",

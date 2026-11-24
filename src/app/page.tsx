@@ -5,6 +5,7 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useMemo, useRef, useState } from "react";
 import { BoxIcon, CheckIcon, ChevronRight, MapIcon, PinIcon, PlusIcon, SearchIcon } from "@/components/Icons";
 import Pagination from "@/components/Pagination";
+import { GROUP_LABEL, GROUP_ORDER, groupOf, type LocGroup } from "@/lib/siteMap";
 import SetupNotice from "@/components/Setup";
 import { ageDays, isReleased, matchesSearch, SWEEP_DAYS, useLocations, useOrders } from "@/lib/data";
 
@@ -22,14 +23,16 @@ function Home() {
   const locationId = params.get("loc") ?? "";
   // "In stock" (default) or "Released" (picked up) tab
   const showReleased = params.get("view") === "released";
+  const grpParam = params.get("grp") as LocGroup | null;
   const requestedPage = Math.max(1, parseInt(params.get("page") ?? "1", 10) || 1);
   const listTop = useRef<HTMLDivElement>(null);
 
-  function setQuery(next: { q?: string; loc?: string; page?: number }) {
+  function setQuery(next: { q?: string; loc?: string; grp?: string; page?: number }) {
     const sp = new URLSearchParams(params.toString());
     const set = (k: string, v: string | undefined) => (v ? sp.set(k, v) : sp.delete(k));
     if ("q" in next) set("q", next.q?.trim() || undefined);
     if ("loc" in next) set("loc", next.loc || undefined);
+    if ("grp" in next) set("grp", next.grp || undefined);
     set("page", next.page && next.page > 1 ? String(next.page) : undefined);
     const qs = sp.toString();
     router.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false });
@@ -53,13 +56,44 @@ function Home() {
   );
   const dueCount = inStock.filter((o) => ageDays(o) >= SWEEP_DAYS).length;
 
+  // location id -> Yard / Bays / Offices / Other
+  const groupOfLoc = useMemo(() => {
+    const m = new Map<string, LocGroup>();
+    locations.forEach((l) => m.set(l.id, groupOf(l.zoneId)));
+    return m;
+  }, [locations]);
+  const grpOfOrder = (o: { locationId: string }) => groupOfLoc.get(o.locationId) ?? "other";
+  // A location picked elsewhere (e.g. from the map) opens its group too.
+  const activeGroup: LocGroup | "" =
+    grpParam && GROUP_ORDER.includes(grpParam) ? grpParam : locationId ? groupOfLoc.get(locationId) ?? "" : "";
+
+  const listBase = showReleased ? released : inStock;
   const results = useMemo(
     () =>
-      (showReleased ? released : inStock).filter(
-        (o) => (!locationId || o.locationId === locationId) && matchesSearch(o, term)
+      listBase.filter(
+        (o) =>
+          (locationId ? o.locationId === locationId : !activeGroup || grpOfOrder(o) === activeGroup) &&
+          matchesSearch(o, term)
       ),
-    [inStock, released, showReleased, term, locationId]
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [listBase, term, locationId, activeGroup, groupOfLoc]
   );
+
+  // POs per group / location in the current tab (for the counts on the chips)
+  const groupCounts = useMemo(() => {
+    const g: Record<string, number> = {};
+    const l: Record<string, number> = {};
+    for (const o of listBase) {
+      g[grpOfOrder(o)] = (g[grpOfOrder(o)] ?? 0) + 1;
+      l[o.locationId] = (l[o.locationId] ?? 0) + 1;
+    }
+    return { g, l };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [listBase, groupOfLoc]);
+  const groupsPresent = GROUP_ORDER.filter(
+    (g) => g !== "other" || locations.some((l) => groupOf(l.zoneId) === "other")
+  );
+  const groupLocations = activeGroup ? locations.filter((l) => groupOf(l.zoneId) === activeGroup) : [];
 
   function tabHref(view: "stock" | "released") {
     const sp = new URLSearchParams(params.toString());
@@ -80,7 +114,7 @@ function Home() {
     listTop.current?.scrollIntoView({ behavior: "smooth", block: "start" });
   }
 
-  const filtering = Boolean(term.trim() || locationId);
+  const filtering = Boolean(term.trim() || locationId || activeGroup);
 
   return (
     <>
@@ -105,23 +139,50 @@ function Home() {
           />
         </div>
         {locations.length > 0 && (
-          <div className="pills pills-sm">
-            <button
-              className={`pill ${!locationId ? "pill-on" : ""}`}
-              onClick={() => setQuery({ q: term, loc: "" })}
-            >
-              All locations
-            </button>
-            {locations.map((l) => (
+          <div className="loc-filter">
+            <div className="group-chips" role="tablist" aria-label="Location group">
               <button
-                key={l.id}
-                className={`pill ${locationId === l.id ? "pill-on" : ""}`}
-                onClick={() => setQuery({ q: term, loc: locationId === l.id ? "" : l.id })}
+                role="tab"
+                aria-selected={!activeGroup}
+                className={`group-chip ${!activeGroup ? "on" : ""}`}
+                onClick={() => setQuery({ q: term, grp: "", loc: "" })}
               >
-                <PinIcon size={14} />
-                {l.name}
+                All
               </button>
-            ))}
+              {groupsPresent.map((g) => (
+                <button
+                  key={g}
+                  role="tab"
+                  aria-selected={activeGroup === g}
+                  className={`group-chip ${activeGroup === g ? "on" : ""}`}
+                  onClick={() => setQuery({ q: term, grp: activeGroup === g ? "" : g, loc: "" })}
+                >
+                  {GROUP_LABEL[g]}
+                  <span className="count-badge">{groupCounts.g[g] ?? 0}</span>
+                </button>
+              ))}
+            </div>
+            {activeGroup && groupLocations.length > 0 && (
+              <div className="pills pills-sm group-locs">
+                <button
+                  className={`pill ${!locationId ? "pill-on" : ""}`}
+                  onClick={() => setQuery({ q: term, grp: activeGroup, loc: "" })}
+                >
+                  All {GROUP_LABEL[activeGroup].toLowerCase()}
+                </button>
+                {groupLocations.map((l) => (
+                  <button
+                    key={l.id}
+                    className={`pill ${locationId === l.id ? "pill-on" : ""}`}
+                    onClick={() => setQuery({ q: term, grp: activeGroup, loc: locationId === l.id ? "" : l.id })}
+                  >
+                    <PinIcon size={14} />
+                    {l.name}
+                    {(groupCounts.l[l.id] ?? 0) > 0 && <span className="pill-count">{groupCounts.l[l.id]}</span>}
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
         )}
         {!loading && orders.length > 0 && (

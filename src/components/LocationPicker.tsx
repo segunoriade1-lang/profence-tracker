@@ -2,10 +2,9 @@
 
 import Link from "next/link";
 import type { OfficeLocation } from "@/lib/data";
-import { KIND_LABEL, ZONE_BY_ID, type ZoneKind } from "@/lib/siteMap";
+import { GROUP_LABEL, GROUP_ORDER, groupOf, type LocGroup } from "@/lib/siteMap";
 import { CheckIcon, PinIcon } from "./Icons";
 
-const ORDER: (ZoneKind | "other")[] = ["building", "shed", "yard", "other"];
 
 export default function LocationPicker({
   locations,
@@ -24,20 +23,20 @@ export default function LocationPicker({
     );
   }
 
-  const groups = new Map<ZoneKind | "other", OfficeLocation[]>();
+  const groups = new Map<LocGroup, OfficeLocation[]>();
   for (const loc of locations) {
-    const kind = (loc.zoneId && ZONE_BY_ID.get(loc.zoneId)?.kind) || "other";
-    if (!groups.has(kind)) groups.set(kind, []);
-    groups.get(kind)!.push(loc);
+    const g = groupOf(loc.zoneId);
+    if (!groups.has(g)) groups.set(g, []);
+    groups.get(g)!.push(loc);
   }
   const showTitles = groups.size > 1;
 
   return (
     <div role="radiogroup" aria-label="Office location">
-      {ORDER.filter((k) => groups.has(k)).map((kind) => (
+      {GROUP_ORDER.filter((k) => groups.has(k)).map((kind) => (
         <div key={kind} className="zone-group">
           {showTitles && (
-            <div className="zone-group-title">{kind === "other" ? "Other" : KIND_LABEL[kind]}</div>
+            <div className="zone-group-title">{GROUP_LABEL[kind]}</div>
           )}
           <div className="pills">
             {groups.get(kind)!.map((loc) => {

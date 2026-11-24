@@ -490,7 +490,7 @@ textarea { resize: vertical; min-height: 96px; }
 }
 code { background: var(--surface-sunk); padding: 2px 6px; border-radius: 6px; font-size: 0.88em; font-family: var(--font-mono), monospace; }
 
-@keyframes pop { from { opacity: 0; transform: translateY(-4px) scale(0.99); } to { opacity: 1; transform: none; } }
+@keyframes pop { from { transform: translateY(-4px) scale(0.99); } to { transform: none; } }
 
 /* ============================================================
    Pagination
@@ -963,3 +963,26 @@ code { background: var(--surface-sunk); padding: 2px 6px; border-radius: 6px; fo
   .scanner-wrap.is-collapsed .scanner-frame, .scanner-wrap.is-collapsed .scanner-status, .scanner-wrap.is-collapsed .scanner-torch { display: none; }
 }
 .qa-card + .form-grid { margin-top: 20px; }
+
+/* Grouped location filter (Search page) */
+.loc-filter { margin-top: 16px; display: flex; flex-direction: column; gap: 10px; }
+.group-chips { display: flex; gap: 6px; flex-wrap: wrap; }
+.group-chip {
+  display: inline-flex; align-items: center; gap: 8px;
+  font: inherit; font-weight: 700; font-size: 0.92rem;
+  padding: 8px 14px; border-radius: 12px; cursor: pointer;
+  border: 1px solid var(--border-strong); background: var(--surface); color: var(--text-2);
+  transition: all 0.15s;
+}
+.group-chip:hover { border-color: var(--accent); color: var(--text); }
+.group-chip.on { background: var(--grad); border-color: transparent; color: #fff; box-shadow: 0 6px 16px -8px rgba(91, 91, 240, 0.7); }
+.group-chip .count-badge { margin-left: 0; }
+.group-chip.on .count-badge { background: rgba(255, 255, 255, 0.2); border-color: transparent; color: #fff; }
+.group-locs { padding: 10px; border-radius: 14px; background: var(--surface-sunk); border: 1px solid var(--border); animation: pop 0.2s ease-out; }
+.hero .group-locs { margin-top: 0; }
+.pill-count { font-size: 0.76rem; font-weight: 800; color: var(--muted); margin-left: 2px; }
+.pill-on .pill-count { color: var(--accent-ink); }
+@media (max-width: 560px) {
+  .group-chips { display: grid; grid-template-columns: repeat(4, 1fr); }
+  .group-chip { justify-content: center; padding: 8px 6px; font-size: 0.86rem; gap: 5px; }
+}
