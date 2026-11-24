@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { JetBrains_Mono, Plus_Jakarta_Sans } from "next/font/google";
 import Link from "next/link";
 import Nav from "@/components/Nav";
+import ScanFab from "@/components/ScanFab";
 import ThemeSwitch from "@/components/ThemeSwitch";
 import { themeInitScript } from "@/lib/theme";
 import "./globals.css";
@@ -52,6 +53,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           </div>
         </header>
         <main className="container">{children}</main>
+        <ScanFab />
       </body>
     </html>
   );

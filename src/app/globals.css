@@ -859,3 +859,107 @@ code { background: var(--surface-sunk); padding: 2px 6px; border-radius: 6px; fo
   .seg { display: flex; width: 100%; }
   .seg a { flex: 1; padding: 7px 6px; font-size: 0.84rem; }
 }
+
+/* ============================================================
+   Quick actions (scan result + order page)
+   ============================================================ */
+.qa { display: flex; flex-direction: column; gap: 14px; }
+.qa-head { display: flex; align-items: center; gap: 14px; }
+.qa-head .thumb { width: 60px; height: 60px; }
+.qa-status {
+  display: flex; align-items: center; gap: 14px; padding: 14px 16px;
+  border-radius: var(--radius); background: var(--grad); color: #fff;
+  box-shadow: 0 14px 30px -14px rgba(91, 91, 240, 0.6);
+}
+.qa-status-icon { display: grid; place-items: center; width: 42px; height: 42px; border-radius: 13px; background: rgba(255, 255, 255, 0.2); flex-shrink: 0; }
+.qa-status-label { font-size: 0.74rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; opacity: 0.85; }
+.qa-status-title { font-weight: 800; font-size: 1.05rem; letter-spacing: -0.01em; }
+.qa-status-title.big { font-size: clamp(1.3rem, 1.1rem + 1vw, 1.7rem); line-height: 1.2; }
+.qa-status-sub { font-size: 0.88rem; opacity: 0.9; overflow-wrap: anywhere; }
+.qa.is-released .qa-status { background: var(--success-soft); color: var(--success); box-shadow: none; border: 1px solid color-mix(in srgb, var(--success) 30%, transparent); }
+.qa.is-released .qa-status-icon.ok { background: var(--success); color: #fff; }
+.qa.is-released .qa-status-sub { color: var(--text-2); opacity: 1; }
+.qa-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.qa-actions .btn-lg { width: auto; white-space: normal; text-align: center; line-height: 1.2; }
+.qa-actions .btn.is-on { border-color: var(--accent); color: var(--accent-ink); background: var(--accent-soft); }
+@media (max-width: 420px) { .qa-actions { grid-template-columns: 1fr; } }
+.qa-move { display: flex; flex-direction: column; gap: 10px; padding: 14px; border: 1px dashed var(--border-strong); border-radius: var(--radius); background: var(--surface-2); animation: pop 0.25s ease-out; }
+.qa-toast {
+  display: flex; align-items: center; gap: 8px; padding: 6px 6px 6px 14px;
+  border-radius: 12px; background: var(--text); color: var(--bg); font-weight: 650; font-size: 0.92rem;
+  animation: pop 0.25s ease-out;
+}
+.qa-toast .btn-ghost { color: var(--bg); min-height: 34px; }
+.qa-toast .btn-ghost:hover { background: rgba(255, 255, 255, 0.12); }
+.qa-note-row input { padding: 10px 12px; }
+.link-btn { background: none; border: 0; padding: 2px 0; font: inherit; font-size: 0.88rem; font-weight: 600; color: var(--accent); cursor: pointer; }
+.link-btn:hover { text-decoration: underline; }
+.qa-map { display: flex; flex-direction: column; gap: 8px; }
+.qa-map .hint { margin: 0; }
+.qa-card { margin-top: 16px; }
+
+/* ============================================================
+   Scanner
+   ============================================================ */
+.scanner {
+  position: relative; overflow: hidden; border-radius: var(--radius-lg);
+  background: #000; aspect-ratio: 3 / 4; max-height: 62vh; width: 100%;
+  box-shadow: var(--shadow-lg);
+}
+@media (min-width: 720px) { .scanner { aspect-ratio: 4 / 3; } }
+.scanner-video { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+.scanner.paused .scanner-video { filter: brightness(0.45) saturate(0.6); }
+.scanner-frame { position: absolute; inset: 0; margin: auto; width: min(64%, 300px); aspect-ratio: 1; pointer-events: none; }
+.scanner-frame .c { position: absolute; width: 34px; height: 34px; border: 4px solid #fff; border-radius: 6px; filter: drop-shadow(0 0 6px rgba(0,0,0,.5)); }
+.scanner-frame .tl { top: 0; left: 0; border-right: 0; border-bottom: 0; }
+.scanner-frame .tr { top: 0; right: 0; border-left: 0; border-bottom: 0; }
+.scanner-frame .bl { bottom: 0; left: 0; border-right: 0; border-top: 0; }
+.scanner-frame .br { bottom: 0; right: 0; border-left: 0; border-top: 0; }
+.scanner-line {
+  position: absolute; left: 6%; right: 6%; height: 3px; border-radius: 3px;
+  background: linear-gradient(90deg, transparent, #8b8cff, transparent);
+  box-shadow: 0 0 14px #8b8cff; animation: scanline 2s ease-in-out infinite;
+}
+@keyframes scanline { 0%, 100% { top: 8%; } 50% { top: 90%; } }
+.scanner-status {
+  position: absolute; left: 50%; bottom: 14px; transform: translateX(-50%);
+  background: rgba(0, 0, 0, 0.6); color: #fff; padding: 6px 14px; border-radius: 999px;
+  font-size: 0.86rem; font-weight: 600; white-space: nowrap; backdrop-filter: blur(6px);
+}
+.scanner-status:empty { display: none; }
+.scanner-torch {
+  position: absolute; top: 12px; right: 12px; padding: 7px 12px; border-radius: 999px; border: 0;
+  background: rgba(0, 0, 0, 0.55); color: #fff; font: inherit; font-size: 0.82rem; font-weight: 700; cursor: pointer;
+}
+.scanner-torch[aria-pressed="true"] { background: #fde047; color: #111; }
+.scanner-fail {
+  position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 10px; padding: 24px; text-align: center; color: #fff; background: #111;
+}
+.scanner-fail .small { color: #c9cad3; max-width: 320px; }
+
+.scan-layout { display: grid; grid-template-columns: 1fr; gap: 18px; align-items: start; }
+@media (min-width: 900px) { .scan-layout { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); } }
+.scan-miss { display: flex; align-items: center; gap: 10px; }
+.scan-manual { display: flex; gap: 8px; }
+.scan-manual input { flex: 1; min-width: 0; }
+
+/* Floating scan button (phones) */
+.scan-fab {
+  position: fixed; right: 18px; bottom: calc(18px + env(safe-area-inset-bottom)); z-index: 30;
+  display: none; align-items: center; gap: 8px; padding: 14px 18px; border-radius: 999px;
+  background: var(--grad); color: #fff; font-weight: 750; box-shadow: 0 14px 30px -8px rgba(91, 91, 240, 0.7);
+}
+.scan-fab:hover { text-decoration: none; filter: brightness(1.07); }
+@media (max-width: 640px) {
+  .scan-fab { display: inline-flex; }
+  .nav-link.nav-scan { display: none; }
+}
+.scanner-wrap { position: relative; }
+.scan-next { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); box-shadow: var(--shadow-lg); }
+/* After a scan on phones, shrink the camera to a strip so the result fits on screen */
+@media (max-width: 899px) {
+  .scanner-wrap.is-collapsed .scanner { aspect-ratio: auto; height: 96px; }
+  .scanner-wrap.is-collapsed .scanner-frame, .scanner-wrap.is-collapsed .scanner-status, .scanner-wrap.is-collapsed .scanner-torch { display: none; }
+}
+.qa-card + .form-grid { margin-top: 20px; }

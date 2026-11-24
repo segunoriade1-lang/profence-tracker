@@ -3,9 +3,9 @@
 import Link from "next/link";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useState } from "react";
-import { ArrowLeft, CheckIcon, ChevronRight, EditIcon, PinIcon, SearchIcon, TrashIcon } from "@/components/Icons";
+import { ArrowLeft, CheckIcon, ChevronRight, EditIcon, SearchIcon, TrashIcon } from "@/components/Icons";
 import QrLabel from "@/components/QrLabel";
-import ReleaseCard from "@/components/ReleaseCard";
+import QuickActions from "@/components/QuickActions";
 import SetupNotice from "@/components/Setup";
 import SiteMap from "@/components/SiteMap";
 import { ageLevel, deleteOrder, isReleased, setOrderMapPos, useLocations, useOrder, usePhoto } from "@/lib/data";
@@ -74,16 +74,8 @@ function OrderDetail() {
         </div>
       </div>
 
-      <ReleaseCard order={order} />
-
-      <div className={`location-hero ${released ? "is-released" : ""}`}>
-        <span className="location-hero-icon">
-          <PinIcon size={26} />
-        </span>
-        <div>
-          <div className="location-hero-label">{released ? "Was stored at" : "Stored at"}</div>
-          <div className="location-hero-name">{order.locationName || "No location set"}</div>
-        </div>
+      <div className="card qa-card">
+        <QuickActions order={order} locations={locations} />
       </div>
 
       <div className="form-grid">

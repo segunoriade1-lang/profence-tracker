@@ -87,6 +87,55 @@ export async function undoRelease(id: string) {
   });
 }
 
+/** What moveOrder changes, so a move can be undone exactly. */
+export type Placement = Pick<
+  InventoryOrder,
+  "locationId" | "locationName" | "mapPos" | "status" | "releasedAt" | "releaseNote" | "lastConfirmedAt"
+>;
+
+export function placementOf(o: InventoryOrder): Placement {
+  return {
+    locationId: o.locationId,
+    locationName: o.locationName,
+    mapPos: o.mapPos ?? null,
+    status: o.status ?? "stored",
+    releasedAt: o.releasedAt ?? null,
+    releaseNote: o.releaseNote ?? null,
+    lastConfirmedAt: o.lastConfirmedAt ?? null,
+  };
+}
+
+/**
+ * Moves a PO to another location. Its dot is auto-placed in the new area (drag to refine),
+ * a picked-up PO goes back in stock, and the move counts as a sweep check.
+ */
+export async function moveOrder(id: string, loc: OfficeLocation) {
+  await updateDoc(doc(db(), "orders", id), {
+    locationId: loc.id,
+    locationName: loc.name,
+    mapPos: deleteField(),
+    status: "stored",
+    releasedAt: deleteField(),
+    releaseNote: deleteField(),
+    lastConfirmedAt: serverTimestamp(),
+    updatedAt: serverTimestamp(),
+  });
+}
+
+/** Puts a PO back exactly how it was before a move. */
+export async function restorePlacement(id: string, p: Placement) {
+  await updateDoc(doc(db(), "orders", id), {
+    locationId: p.locationId,
+    locationName: p.locationName,
+    mapPos: p.mapPos ?? deleteField(),
+    status: p.status ?? "stored",
+    releasedAt: p.releasedAt ?? deleteField(),
+    releaseNote: p.releaseNote ?? deleteField(),
+    lastConfirmedAt: p.lastConfirmedAt ?? deleteField(),
+    updatedAt: serverTimestamp(),
+  });
+}
+
 /** Sweep: "still here" — resets its age. */
 export async function confirmStillHere(id: string) {
   await updateDoc(doc(db(), "orders", id), { lastConfirmedAt: serverTimestamp() });
