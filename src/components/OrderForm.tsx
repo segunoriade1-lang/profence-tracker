@@ -16,7 +16,7 @@ import {
 } from "@/lib/data";
 import { firebaseConfigured } from "@/lib/firebase";
 
-export default function OrderForm({ existing }: { existing?: InventoryOrder }) {
+export default function OrderForm({ existing, initialLocationId }: { existing?: InventoryOrder; initialLocationId?: string }) {
   const router = useRouter();
   const { locations, error: locError } = useLocations();
   const { orders } = useOrders();
@@ -24,8 +24,15 @@ export default function OrderForm({ existing }: { existing?: InventoryOrder }) {
   const [poNumber, setPoNumber] = useState(existing?.poNumber ?? "");
   const [itemName, setItemName] = useState(existing?.itemName ?? "");
   const [description, setDescription] = useState(existing?.description ?? "");
-  const [locationId, setLocationId] = useState(existing?.locationId ?? "");
+  const [locationId, setLocationId] = useState(existing?.locationId ?? initialLocationId ?? "");
   const [locationName, setLocationName] = useState(existing?.locationName ?? "");
+
+  // Coming from "Add order here" on the map: fill in that location's name once locations load.
+  useEffect(() => {
+    if (existing || !locationId || locationName) return;
+    const loc = locations.find((l) => l.id === locationId);
+    if (loc) setLocationName(loc.name);
+  }, [existing, locationId, locationName, locations]);
 
   // photo: undefined = unchanged (edit), null = none/removed, File = new
   const [photo, setPhoto] = useState<File | null | undefined>(existing ? undefined : null);

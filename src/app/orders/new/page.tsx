@@ -1,6 +1,8 @@
 "use client";
 
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
+import { Suspense } from "react";
 import { ArrowLeft, PlusIcon } from "@/components/Icons";
 import OrderForm from "@/components/OrderForm";
 
@@ -19,7 +21,14 @@ export default function NewOrderPage() {
           <p className="muted">Log what came in, snap a photo, and tag where it&apos;s stored.</p>
         </div>
       </div>
-      <OrderForm />
+      <Suspense fallback={<div className="skeleton" style={{ height: 360 }} />}>
+        <NewOrderForm />
+      </Suspense>
     </>
   );
+}
+
+function NewOrderForm() {
+  const loc = useSearchParams().get("loc") ?? undefined;
+  return <OrderForm initialLocationId={loc} />;
 }

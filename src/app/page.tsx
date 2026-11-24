@@ -249,7 +249,7 @@ function Home() {
             <>
               <strong>No orders yet</strong>
               <span>
-                Add your <Link href="/locations">office locations</Link>, then{" "}
+                Add your <Link href="/map?view=list">office locations</Link>, then{" "}
                 <Link href="/orders/new">create your first inventory order</Link>.
               </span>
             </>

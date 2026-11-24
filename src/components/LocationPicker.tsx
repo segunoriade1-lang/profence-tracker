@@ -18,7 +18,7 @@ export default function LocationPicker({
   if (!locations.length) {
     return (
       <p className="hint">
-        No office locations yet. <Link href="/locations">Add your office locations</Link> first.
+        No office locations yet. <Link href="/map?view=list">Add your office locations</Link> first.
       </p>
     );
   }

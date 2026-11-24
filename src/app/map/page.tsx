@@ -5,6 +5,7 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useMemo, useState } from "react";
 import { BoxIcon, ChevronRight, MapIcon, PinIcon, PlusIcon, SearchIcon, TrashIcon, XIcon } from "@/components/Icons";
 import SetupNotice from "@/components/Setup";
+import LocationsManager from "@/components/LocationsManager";
 import SiteMap, { type MapDot } from "@/components/SiteMap";
 import {
   addZoneBack,
@@ -33,6 +34,7 @@ function MapView() {
   const { locations, loading: locLoading } = useLocations();
 
   const selectedZone = params.get("zone");
+  const view = params.get("view") === "list" ? "list" : "map";
   const [term, setTerm] = useState("");
   const [activeDot, setActiveDot] = useState<string | null>(null);
   const [moveError, setMoveError] = useState<string | null>(null);
@@ -189,9 +191,27 @@ function MapView() {
             <MapIcon size={14} /> Site map
           </div>
           <h1>Phoenix Fence yard</h1>
-          <p className="muted">Tap an area to see the POs stored there. Search to light up where items are.</p>
+          <p className="muted">
+            {view === "list"
+              ? "Every place items can be stored: yard areas, bays, offices, shelves and bins."
+              : "Tap an area to see the POs stored there. Search to light up where items are."}
+          </p>
         </div>
       </div>
+
+      <div className="seg" role="tablist" aria-label="Map view" style={{ marginBottom: 18 }}>
+        <Link href="/map" className={view === "map" ? "on" : ""} role="tab" aria-selected={view === "map"} scroll={false}>
+          Map
+        </Link>
+        <Link href="/map?view=list" className={view === "list" ? "on" : ""} role="tab" aria-selected={view === "list"} scroll={false}>
+          Locations list <span className="count-badge">{locations.length}</span>
+        </Link>
+      </div>
+
+      {view === "list" ? (
+        <LocationsManager />
+      ) : (
+      <>
 
       {!locLoading && missing > 0 && (
         <div className="notice row between" style={{ alignItems: "center" }}>
@@ -275,10 +295,17 @@ function MapView() {
                   ))}
                 </ul>
               )}
-              {zoneLocation && zoneOrders.length > 0 && (
-                <Link href={`/?loc=${zoneLocation.id}`} className="btn">
-                  Open in search <ChevronRight size={16} />
-                </Link>
+              {zoneLocation && (
+                <div className="area-actions" style={zoneOrders.length ? undefined : { gridTemplateColumns: "1fr" }}>
+                  <Link href={`/orders/new?loc=${zoneLocation.id}`} className="btn btn-primary">
+                    <PlusIcon size={16} /> Add order here
+                  </Link>
+                  {zoneOrders.length > 0 && (
+                    <Link href={`/?loc=${zoneLocation.id}`} className="btn">
+                      Open in search <ChevronRight size={16} />
+                    </Link>
+                  )}
+                </div>
               )}
               {zoneLocation && (
                 <>
@@ -378,6 +405,8 @@ function MapView() {
           )}
         </aside>
       </div>
+      </>
+      )}
     </>
   );
 }
