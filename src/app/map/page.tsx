@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useMemo, useState } from "react";
-import { BoxIcon, CheckIcon, ChevronRight, EditIcon, MapIcon, PinIcon, PlusIcon, SearchIcon, TrashIcon, XIcon } from "@/components/Icons";
+import { ArrowLeft, BoxIcon, CheckIcon, ChevronRight, EditIcon, MapIcon, PinIcon, PlusIcon, SearchIcon, TrashIcon, XIcon } from "@/components/Icons";
 import SetupNotice from "@/components/Setup";
 import LocationsManager from "@/components/LocationsManager";
 import SiteMap, { type MapDot } from "@/components/SiteMap";
@@ -21,6 +21,7 @@ import {
   syncMapLocations,
   useLocations,
   useOrders,
+  usePhoto,
   type InventoryOrder,
 } from "@/lib/data";
 import { ZONE_BY_ID, ZONES } from "@/lib/siteMap";
@@ -38,11 +39,14 @@ function MapView() {
   const view = params.get("view") === "list" ? "list" : "map";
   const [term, setTerm] = useState("");
   const [activeDot, setActiveDot] = useState<string | null>(null);
+  // PO opened in full inside the area pop-up (null = showing the list).
+  const [detailId, setDetailId] = useState<string | null>(null);
   const [moveError, setMoveError] = useState<string | null>(null);
   const [syncing, setSyncing] = useState(false);
   const [syncMsg, setSyncMsg] = useState<string | null>(null);
 
   function selectZone(zoneId: string | null) {
+    setDetailId(null);
     setEditingName(null);
     setNameError(null);
     const sp = new URLSearchParams(params.toString());
@@ -208,13 +212,23 @@ function MapView() {
   const zone = selectedZone && visibleIds.has(selectedZone) ? ZONE_BY_ID.get(selectedZone) : undefined;
   const zoneLocation = zone ? locations.find((l) => l.zoneId === zone.id) : undefined;
   const zoneOrders = zone ? byZone[zone.id] ?? [] : [];
+  const detailOrder = detailId ? zoneOrders.find((o) => o.id === detailId) : undefined;
   const busiest = ZONES.filter((z) => counts[z.id]).sort((a, b) => counts[b.id] - counts[a.id]);
+
+  // In the pop-up, the first PO on the list starts highlighted (unless a dot in this area was just tapped).
+  useEffect(() => {
+    if (!zone || zoneOrders.length === 0) return;
+    if (!activeDot || !zoneOrders.some((o) => o.id === activeDot)) setActiveDot(zoneOrders[0].id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [zone?.id, zoneOrders]);
 
   // Area pop-up: Esc closes it, and the page behind doesn't scroll.
   useEffect(() => {
     if (!zone) return;
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape" && editingName === null) selectZone(null);
+      if (e.key !== "Escape" || editingName !== null) return;
+      if (detailId) setDetailId(null);
+      else selectZone(null);
     };
     document.addEventListener("keydown", onKey);
     const prev = document.body.style.overflow;
@@ -224,7 +238,7 @@ function MapView() {
       document.body.style.overflow = prev;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [zone?.id, editingName]);
+  }, [zone?.id, editingName, detailId]);
 
   return (
     <>
@@ -436,6 +450,10 @@ function MapView() {
                 </button>
               </div>
             <div className="sheet-body stack">
+              {detailOrder ? (
+                <OrderDetail order={detailOrder} areaName={zoneLocation?.name || zone.label} onBack={() => setDetailId(null)} />
+              ) : (
+              <>
                 {ordersLoading ? (
                   <div className="skeleton" style={{ height: 60 }} />
                 ) : zoneOrders.length === 0 ? (
@@ -443,21 +461,35 @@ function MapView() {
                     {term.trim() ? `No POs matching “${term}” here.` : "No POs stored here yet."}
                   </p>
                 ) : (
-                  <ul className="panel-list">
+                  <ul className="panel-list" role="listbox" aria-label="POs in this area">
                     {zoneOrders.map((o) => (
-                      <OrderItem key={o.id} order={o} active={activeDot === o.id} onHover={setActiveDot} />
+                      <OrderItem
+                        key={o.id}
+                        order={o}
+                        active={activeDot === o.id}
+                        onSelect={() => setActiveDot(o.id)}
+                        onOpen={() => {
+                          setActiveDot(o.id);
+                          setDetailId(o.id);
+                        }}
+                      />
                     ))}
                   </ul>
                 )}
+                {zoneOrders.length > 1 && <p className="hint" style={{ margin: 0 }}>Tap a PO to find it on the map · tap it again for details</p>}
                 {zoneLocation && (
                   <div className="area-actions" style={zoneOrders.length ? undefined : { gridTemplateColumns: "1fr" }}>
                     <Link href={`/orders/new?loc=${zoneLocation.id}`} className="btn btn-primary">
                       <PlusIcon size={16} /> Add order here
                     </Link>
                     {zoneOrders.length > 0 && (
-                      <Link href={`/?loc=${zoneLocation.id}`} className="btn">
-                        Open in search <ChevronRight size={16} />
-                      </Link>
+                      <button
+                        className="btn"
+                        disabled={!activeDot || !zoneOrders.some((o) => o.id === activeDot)}
+                        onClick={() => setDetailId(activeDot)}
+                      >
+                        View details <ChevronRight size={16} />
+                      </button>
                     )}
                   </div>
                 )}
@@ -486,6 +518,8 @@ function MapView() {
                     </p>
                   </>
                 )}
+              </>
+              )}
             </div>
           </div>
         </div>
@@ -500,29 +534,112 @@ function OrderItem({
   order,
   active,
   onHover,
+  onSelect,
+  onOpen,
 }: {
   order: InventoryOrder;
   active?: boolean;
   onHover?: (id: string) => void;
+  /** In the area pop-up: a tap highlights the PO instead of leaving the page. */
+  onSelect?: () => void;
+  /** Double-click / second tap on the highlighted PO opens its details. */
+  onOpen?: () => void;
 }) {
+  const content = (
+    <>
+      {order.photoThumb ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img className="thumb" src={order.photoThumb} alt="" />
+      ) : (
+        <span className="thumb thumb-empty" aria-hidden>
+          <BoxIcon size={18} />
+        </span>
+      )}
+      <span className="order-main">
+        <span className="po">{order.poNumber}</span>
+        {order.itemName && <span className="order-desc">{order.itemName}</span>}
+      </span>
+      {active && onSelect ? <CheckIcon className="chev" size={18} /> : <ChevronRight className="chev" size={18} />}
+    </>
+  );
+  if (onSelect) {
+    return (
+      <li role="option" aria-selected={!!active}>
+        <button
+          type="button"
+          className={`panel-item panel-item-btn ${active ? "is-active" : ""}`}
+          onClick={() => (active && onOpen ? onOpen() : onSelect())}
+          onDoubleClick={onOpen}
+        >
+          {content}
+        </button>
+      </li>
+    );
+  }
   return (
     <li onMouseEnter={() => onHover?.(order.id)} onFocus={() => onHover?.(order.id)}>
       <Link href={`/orders/${order.id}`} className={`panel-item ${active ? "is-active" : ""}`}>
-        {order.photoThumb ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img className="thumb" src={order.photoThumb} alt="" />
-        ) : (
-          <span className="thumb thumb-empty" aria-hidden>
-            <BoxIcon size={18} />
-          </span>
-        )}
-        <span className="order-main">
-          <span className="po">{order.poNumber}</span>
-          {order.itemName && <span className="order-desc">{order.itemName}</span>}
-        </span>
-        <ChevronRight className="chev" size={18} />
+        {content}
       </Link>
     </li>
+  );
+}
+
+/** A PO's details shown inside the area pop-up, with a way back to the list. */
+function OrderDetail({ order, areaName, onBack }: { order: InventoryOrder; areaName: string; onBack: () => void }) {
+  const photo = usePhoto(order.id, order.hasPhoto);
+  const created = order.createdAt?.toDate?.();
+  return (
+    <div className="stack">
+      <button type="button" className="back-link sheet-back" onClick={onBack}>
+        <ArrowLeft size={16} /> Back to {areaName}
+      </button>
+      <dl className="detail-list">
+        <div className="detail-item">
+          <dt>Purchase order</dt>
+          <dd className="po po-lg">{order.poNumber}</dd>
+        </div>
+        {order.itemName && (
+          <div className="detail-item">
+            <dt>Item</dt>
+            <dd style={{ fontWeight: 600, fontSize: "1.05rem" }}>{order.itemName}</dd>
+          </div>
+        )}
+        {order.description && (
+          <div className="detail-item">
+            <dt>Description</dt>
+            <dd className="prewrap">{order.description}</dd>
+          </div>
+        )}
+        {order.hasPhoto && (photo || order.photoThumb) && (
+          <div className="detail-item">
+            <dt>Photo</dt>
+            <dd>
+              <div className="photo-frame">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={photo ?? order.photoThumb ?? ""} alt="Order photo" />
+              </div>
+            </dd>
+          </div>
+        )}
+        {created && (
+          <div className="detail-item">
+            <dt>Added</dt>
+            <dd className="muted">
+              {created.toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" })}
+            </dd>
+          </div>
+        )}
+      </dl>
+      <div className="area-actions">
+        <button type="button" className="btn" onClick={onBack}>
+          <ArrowLeft size={16} /> Back to list
+        </button>
+        <Link href={`/orders/${order.id}`} className="btn btn-primary">
+          Edit, move or pick up <ChevronRight size={16} />
+        </Link>
+      </div>
+    </div>
   );
 }
 

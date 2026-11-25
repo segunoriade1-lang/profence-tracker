@@ -1018,3 +1018,9 @@ code { background: var(--surface-sunk); padding: 2px 6px; border-radius: 6px; fo
 @keyframes sheet-fade { from { opacity: 0; } }
 @keyframes sheet-pop { from { opacity: 0; transform: translateY(8px) scale(0.98); } }
 @keyframes sheet-up { from { transform: translateY(100%); } }
+
+/* PO rows in the area pop-up are buttons (tap to highlight, tap again to open) */
+.panel-item-btn { width: 100%; font: inherit; color: inherit; text-align: left; cursor: pointer; }
+.panel-item-btn.is-active { background: var(--accent-soft); }
+.panel-item-btn.is-active .chev { color: var(--accent); }
+.sheet-back { background: none; border: 0; padding: 0; font: inherit; cursor: pointer; align-self: flex-start; }
