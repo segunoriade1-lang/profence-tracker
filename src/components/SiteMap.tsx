@@ -101,6 +101,7 @@ export default function SiteMap({
   activeDotId,
   onDotMove,
   onDotClick,
+  names,
   className = "",
 }: {
   /** POs to draw as pulsing dots. */
@@ -110,6 +111,8 @@ export default function SiteMap({
   /** Makes dots draggable; called with the spot a dot was dropped at (kept inside its area). */
   onDotMove?: (id: string, x: number, y: number) => void;
   onDotClick?: (id: string) => void;
+  /** Custom label per zone id (e.g. the linked location's name). */
+  names?: Record<string, string>;
   /** Only these zones are drawn (areas removed from the map are left out). Omit to draw all. */
   visibleIds?: Set<string> | null;
   /** Number of POs per zone id. */
@@ -321,7 +324,8 @@ export default function SiteMap({
         <polygon key={i} points={pts(l.points)} className={`map-landmark map-landmark-${l.kind}`} />
       ))}
 
-      {ZONES.filter((zone) => !visibleIds || visibleIds.has(zone.id)).map((zone) => {
+      {ZONES.filter((z) => !visibleIds || visibleIds.has(z.id)).map((z) => {
+        const zone = names?.[z.id] ? { ...z, label: names[z.id] } : z;
         const count = counts[zone.id] ?? 0;
         const selected = selectedId === zone.id;
         const highlighted = highlightIds ? highlightIds.has(zone.id) : false;
@@ -399,7 +403,8 @@ export default function SiteMap({
       {dots && (
         <g className="po-dots">
           {dots.map((dot) => {
-            const zone = ZONE_BY_ID.get(dot.zoneId);
+            const z0 = ZONE_BY_ID.get(dot.zoneId);
+            const zone = z0 && names?.[z0.id] ? { ...z0, label: names[z0.id] } : z0;
             if (!zone || (visibleIds && !visibleIds.has(zone.id))) return null;
             const live = dragDot?.id === dot.id ? dragDot : justDropped[dot.id];
             const at = live ?? resolveSpot(dot.id, zone, dot.pos);

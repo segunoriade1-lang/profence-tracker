@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useMemo, useState } from "react";
-import { BoxIcon, ChevronRight, MapIcon, PinIcon, PlusIcon, SearchIcon, TrashIcon, XIcon } from "@/components/Icons";
+import { BoxIcon, CheckIcon, ChevronRight, EditIcon, MapIcon, PinIcon, PlusIcon, SearchIcon, TrashIcon, XIcon } from "@/components/Icons";
 import SetupNotice from "@/components/Setup";
 import LocationsManager from "@/components/LocationsManager";
 import SiteMap, { type MapDot } from "@/components/SiteMap";
@@ -16,6 +16,7 @@ import {
   matchesSearch,
   planMapSync,
   removeFromMap,
+  renameLocation,
   setOrderMapPos,
   syncMapLocations,
   useLocations,
@@ -42,6 +43,8 @@ function MapView() {
   const [syncMsg, setSyncMsg] = useState<string | null>(null);
 
   function selectZone(zoneId: string | null) {
+    setEditingName(null);
+    setNameError(null);
     const sp = new URLSearchParams(params.toString());
     if (zoneId && zoneId !== selectedZone) sp.set("zone", zoneId);
     else sp.delete("zone");
@@ -118,6 +121,31 @@ function MapView() {
     () => new Set(locations.map((l) => l.zoneId).filter(Boolean) as string[]),
     [locations]
   );
+  const zoneNames = useMemo(() => {
+    const m: Record<string, string> = {};
+    locations.forEach((l) => l.zoneId && l.name && (m[l.zoneId] = l.name));
+    return m;
+  }, [locations]);
+  const [editingName, setEditingName] = useState<string | null>(null);
+  const [savingName, setSavingName] = useState(false);
+  const [nameError, setNameError] = useState<string | null>(null);
+
+  async function onRename(e: React.FormEvent, locationId: string) {
+    e.preventDefault();
+    const name = (editingName ?? "").trim();
+    if (!name) return;
+    setSavingName(true);
+    setNameError(null);
+    try {
+      await renameLocation(locationId, name);
+      setEditingName(null);
+    } catch (err) {
+      setNameError(`Couldn't rename: ${(err as Error).message}`);
+    } finally {
+      setSavingName(false);
+    }
+  }
+
   const removedZones = ZONES.filter((z) => !visibleIds.has(z.id));
   const plan = planMapSync(locations);
   // First-time setup only: once any area is on the map, removed areas stay removed.
@@ -240,6 +268,7 @@ function MapView() {
             activeDotId={activeDot}
             onDotMove={onDotMove}
             onDotClick={onDotClick}
+            names={zoneNames}
           />
           <div className="map-legend">
             <span><i className="lg-building" /> Main building</span>
@@ -268,15 +297,43 @@ function MapView() {
 
           {zone ? (
             <>
-              <div className="row between" style={{ flexWrap: "nowrap" }}>
-                <div style={{ minWidth: 0 }}>
+              <div className="row between" style={{ flexWrap: "nowrap", alignItems: "flex-start" }}>
+                <div style={{ minWidth: 0, flex: 1 }}>
                   <div className="zone-group-title">Selected area</div>
-                  <h2 className="section-title" style={{ fontSize: "1.25rem" }}>
-                    <PinIcon size={18} /> {zone.label}
-                  </h2>
-                  {zoneLocation && zoneLocation.name !== zone.label && (
-                    <div className="muted small">Location name: {zoneLocation.name}</div>
+                  {zoneLocation && editingName !== null ? (
+                    <form className="row" onSubmit={(e) => onRename(e, zoneLocation.id)} style={{ flexWrap: "nowrap", marginTop: 4 }}>
+                      <input
+                        autoFocus
+                        value={editingName}
+                        onChange={(e) => setEditingName(e.target.value)}
+                        onKeyDown={(e) => e.key === "Escape" && setEditingName(null)}
+                        aria-label="Location name"
+                        style={{ padding: "8px 10px", minWidth: 0, flex: 1 }}
+                        disabled={savingName}
+                      />
+                      <button className="btn btn-primary btn-icon" aria-label="Save name" disabled={savingName || !editingName.trim()}>
+                        <CheckIcon size={16} />
+                      </button>
+                      <button type="button" className="btn btn-icon" aria-label="Cancel" onClick={() => setEditingName(null)}>
+                        <XIcon size={16} />
+                      </button>
+                    </form>
+                  ) : (
+                    <h2 className="section-title" style={{ fontSize: "1.25rem" }}>
+                      <PinIcon size={18} /> {zoneLocation?.name || zone.label}
+                      {zoneLocation && (
+                        <button
+                          className="btn btn-ghost btn-icon"
+                          aria-label="Edit name"
+                          title="Edit name"
+                          onClick={() => setEditingName(zoneLocation.name || zone.label)}
+                        >
+                          <EditIcon size={16} />
+                        </button>
+                      )}
+                    </h2>
                   )}
+                  {nameError && <p className="error small">{nameError}</p>}
                 </div>
                 <button className="btn btn-ghost btn-icon" aria-label="Clear selection" onClick={() => selectZone(null)}>
                   <XIcon size={18} />
@@ -315,7 +372,7 @@ function MapView() {
                     <button
                       className="btn"
                       disabled={!!busyZone}
-                      onClick={() => onRemoveFromMap(zoneLocation.id, zone.label)}
+                      onClick={() => onRemoveFromMap(zoneLocation.id, zoneLocation.name || zone.label)}
                     >
                       <XIcon size={15} /> Remove from map
                     </button>
@@ -343,7 +400,7 @@ function MapView() {
                 {busiest.map((z) => (
                   <div key={z.id} className="zone-group">
                     <button className="pill" style={{ alignSelf: "flex-start" }} onClick={() => selectZone(z.id)}>
-                      <PinIcon size={14} /> {z.label} <span className="count-badge" style={{ marginLeft: 2 }}>{counts[z.id]}</span>
+                      <PinIcon size={14} /> {zoneNames[z.id] ?? z.label} <span className="count-badge" style={{ marginLeft: 2 }}>{counts[z.id]}</span>
                     </button>
                     <ul className="panel-list">
                       {byZone[z.id].slice(0, 5).map((o) => (
@@ -363,7 +420,7 @@ function MapView() {
                 <div className="pills">
                   {busiest.map((z) => (
                     <button key={z.id} className="pill" onClick={() => selectZone(z.id)}>
-                      <PinIcon size={14} /> {z.label}
+                      <PinIcon size={14} /> {zoneNames[z.id] ?? z.label}
                       <span className="count-badge" style={{ marginLeft: 2 }}>{counts[z.id]}</span>
                     </button>
                   ))}
