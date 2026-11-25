@@ -31,7 +31,7 @@ export default function EditOrderPage() {
           <div className="eyebrow">
             <EditIcon size={14} /> Editing
           </div>
-          <h1 className="mono" style={{ fontWeight: 700 }}>{order.poNumber}</h1>
+          <h1 className="mono">{order.poNumber}</h1>
         </div>
       </div>
       <OrderForm existing={order} />

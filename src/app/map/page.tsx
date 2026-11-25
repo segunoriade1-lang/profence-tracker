@@ -245,9 +245,6 @@ function MapView() {
       <SetupNotice error={error} />
       <div className="page-head">
         <div>
-          <div className="eyebrow">
-            <MapIcon size={14} /> Yard blueprint
-          </div>
           <h1>Phoenix Fence yard</h1>
           <p className="muted">
             {view === "list"
@@ -602,7 +599,7 @@ function OrderDetail({ order, areaName, onBack }: { order: InventoryOrder; areaN
         {order.itemName && (
           <div className="detail-item">
             <dt>Item</dt>
-            <dd style={{ fontWeight: 600, fontSize: "1.05rem" }}>{order.itemName}</dd>
+            <dd style={{ fontWeight: 500, fontSize: "1rem" }}>{order.itemName}</dd>
           </div>
         )}
         {order.description && (

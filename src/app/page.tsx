@@ -105,9 +105,6 @@ function Home() {
       <SetupNotice error={error} />
 
       <section className="hero">
-        <div className="eyebrow">
-          <SearchIcon size={14} /> Inventory finder
-        </div>
         <h1>Where did we put it?</h1>
         <p className="lead">Search any PO number, item, note or location — find it in seconds.</p>
         <div className="search-wrap">

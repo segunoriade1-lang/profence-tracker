@@ -78,9 +78,6 @@ export default function ScanPage() {
       <SetupNotice error={error} />
       <div className="page-head" style={{ marginBottom: 16 }}>
         <div>
-          <div className="eyebrow">
-            <QrIcon size={14} /> Scan
-          </div>
           <h1>Scan a label</h1>
           <p className="muted">Point the camera at a PO&apos;s QR code. Everything stays in this tab.</p>
         </div>

@@ -88,7 +88,7 @@ function OrderDetail() {
             {order.itemName && (
               <div className="detail-item">
                 <dt>Item</dt>
-                <dd style={{ fontWeight: 600, fontSize: "1.05rem" }}>{order.itemName}</dd>
+                <dd style={{ fontWeight: 500, fontSize: "1rem" }}>{order.itemName}</dd>
               </div>
             )}
             {order.description && (
