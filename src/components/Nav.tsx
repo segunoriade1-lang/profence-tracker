@@ -5,9 +5,9 @@ import { usePathname } from "next/navigation";
 import { MapIcon, QrIcon, SearchIcon } from "./Icons";
 
 const links = [
-  { href: "/scan", label: "Scan", icon: QrIcon, match: (p: string) => p.startsWith("/scan"), cls: "nav-scan" },
   { href: "/", label: "Search", icon: SearchIcon, match: (p: string) => p === "/" || p.startsWith("/orders/") },
   { href: "/map", label: "Map", icon: MapIcon, match: (p: string) => p.startsWith("/map") || p.startsWith("/locations") },
+  { href: "/scan", label: "Scan", icon: QrIcon, match: (p: string) => p.startsWith("/scan"), cls: "nav-scan" },
 ];
 
 export default function Nav() {
