@@ -985,3 +985,36 @@ code { background: var(--surface-sunk); padding: 2px 6px; border-radius: 6px; fo
 /* Locations list grouped by Yard / Bays / Offices */
 .loc-groups { display: flex; flex-direction: column; gap: 22px; }
 .loc-group .zone-group-title { display: flex; align-items: center; gap: 8px; margin: 0 0 10px; }
+
+/* Area pop-up (map) */
+.sheet-backdrop {
+  position: fixed; inset: 0; z-index: 60; display: flex; align-items: center; justify-content: center;
+  padding: 24px; background: rgba(12, 13, 18, 0.45); backdrop-filter: blur(3px);
+  animation: sheet-fade 0.15s ease-out;
+}
+.sheet {
+  width: 100%; max-width: 480px; max-height: min(86vh, 760px); display: flex; flex-direction: column;
+  background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lg); overflow: hidden; animation: sheet-pop 0.18s ease-out;
+}
+.sheet-head {
+  display: flex; align-items: flex-start; gap: 12px; padding: 18px 18px 14px 20px;
+  border-bottom: 1px solid var(--border);
+}
+.sheet-head .section-title { margin: 2px 0 0; }
+.sheet-body { padding: 16px 20px calc(20px + env(safe-area-inset-bottom)); overflow-y: auto; overscroll-behavior: contain; }
+.sheet-close {
+  flex: none; display: grid; place-items: center; width: 44px; height: 44px; border-radius: 999px;
+  border: 1px solid var(--border-strong); background: var(--surface-sunk); color: var(--text);
+  cursor: pointer; transition: background 0.15s, transform 0.1s;
+}
+.sheet-close:hover { background: var(--bg-2); }
+.sheet-close:active { transform: scale(0.94); }
+.sheet-close:focus-visible { outline: none; box-shadow: var(--ring); }
+@media (max-width: 640px) {
+  .sheet-backdrop { align-items: flex-end; padding: 0; }
+  .sheet { max-width: none; max-height: 88vh; border-radius: 22px 22px 0 0; border-bottom: 0; animation: sheet-up 0.22s ease-out; }
+}
+@keyframes sheet-fade { from { opacity: 0; } }
+@keyframes sheet-pop { from { opacity: 0; transform: translateY(8px) scale(0.98); } }
+@keyframes sheet-up { from { transform: translateY(100%); } }

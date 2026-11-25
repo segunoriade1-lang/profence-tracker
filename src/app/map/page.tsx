@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { Suspense, useMemo, useState } from "react";
+import { Suspense, useEffect, useMemo, useState } from "react";
 import { BoxIcon, CheckIcon, ChevronRight, EditIcon, MapIcon, PinIcon, PlusIcon, SearchIcon, TrashIcon, XIcon } from "@/components/Icons";
 import SetupNotice from "@/components/Setup";
 import LocationsManager from "@/components/LocationsManager";
@@ -210,6 +210,22 @@ function MapView() {
   const zoneOrders = zone ? byZone[zone.id] ?? [] : [];
   const busiest = ZONES.filter((z) => counts[z.id]).sort((a, b) => counts[b.id] - counts[a.id]);
 
+  // Area pop-up: Esc closes it, and the page behind doesn't scroll.
+  useEffect(() => {
+    if (!zone) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape" && editingName === null) selectZone(null);
+    };
+    document.addEventListener("keydown", onKey);
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.removeEventListener("keydown", onKey);
+      document.body.style.overflow = prev;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [zone?.id, editingName]);
+
   return (
     <>
       <SetupNotice error={error} />
@@ -295,102 +311,7 @@ function MapView() {
             />
           </div>
 
-          {zone ? (
-            <>
-              <div className="row between" style={{ flexWrap: "nowrap", alignItems: "flex-start" }}>
-                <div style={{ minWidth: 0, flex: 1 }}>
-                  <div className="zone-group-title">Selected area</div>
-                  {zoneLocation && editingName !== null ? (
-                    <form className="row" onSubmit={(e) => onRename(e, zoneLocation.id)} style={{ flexWrap: "nowrap", marginTop: 4 }}>
-                      <input
-                        autoFocus
-                        value={editingName}
-                        onChange={(e) => setEditingName(e.target.value)}
-                        onKeyDown={(e) => e.key === "Escape" && setEditingName(null)}
-                        aria-label="Location name"
-                        style={{ padding: "8px 10px", minWidth: 0, flex: 1 }}
-                        disabled={savingName}
-                      />
-                      <button className="btn btn-primary btn-icon" aria-label="Save name" disabled={savingName || !editingName.trim()}>
-                        <CheckIcon size={16} />
-                      </button>
-                      <button type="button" className="btn btn-icon" aria-label="Cancel" onClick={() => setEditingName(null)}>
-                        <XIcon size={16} />
-                      </button>
-                    </form>
-                  ) : (
-                    <h2 className="section-title" style={{ fontSize: "1.25rem" }}>
-                      <PinIcon size={18} /> {zoneLocation?.name || zone.label}
-                      {zoneLocation && (
-                        <button
-                          className="btn btn-ghost btn-icon"
-                          aria-label="Edit name"
-                          title="Edit name"
-                          onClick={() => setEditingName(zoneLocation.name || zone.label)}
-                        >
-                          <EditIcon size={16} />
-                        </button>
-                      )}
-                    </h2>
-                  )}
-                  {nameError && <p className="error small">{nameError}</p>}
-                </div>
-                <button className="btn btn-ghost btn-icon" aria-label="Clear selection" onClick={() => selectZone(null)}>
-                  <XIcon size={18} />
-                </button>
-              </div>
-              {ordersLoading ? (
-                <div className="skeleton" style={{ height: 60 }} />
-              ) : zoneOrders.length === 0 ? (
-                <p className="hint">
-                  {term.trim() ? `No POs matching “${term}” here.` : "No POs stored here yet."}
-                </p>
-              ) : (
-                <ul className="panel-list">
-                  {zoneOrders.map((o) => (
-                    <OrderItem key={o.id} order={o} active={activeDot === o.id} onHover={setActiveDot} />
-                  ))}
-                </ul>
-              )}
-              {zoneLocation && (
-                <div className="area-actions" style={zoneOrders.length ? undefined : { gridTemplateColumns: "1fr" }}>
-                  <Link href={`/orders/new?loc=${zoneLocation.id}`} className="btn btn-primary">
-                    <PlusIcon size={16} /> Add order here
-                  </Link>
-                  {zoneOrders.length > 0 && (
-                    <Link href={`/?loc=${zoneLocation.id}`} className="btn">
-                      Open in search <ChevronRight size={16} />
-                    </Link>
-                  )}
-                </div>
-              )}
-              {zoneLocation && (
-                <>
-                  <hr className="divider" />
-                  <div className="zone-group-title">Manage this area</div>
-                  <div className="area-actions">
-                    <button
-                      className="btn"
-                      disabled={!!busyZone}
-                      onClick={() => onRemoveFromMap(zoneLocation.id, zoneLocation.name || zone.label)}
-                    >
-                      <XIcon size={15} /> Remove from map
-                    </button>
-                    <button
-                      className="btn btn-danger"
-                      disabled={!!busyZone}
-                      onClick={() => onDeleteArea(zoneLocation.id, zoneLocation.name, (byZone[zone.id] ?? []).length)}
-                    >
-                      <TrashIcon size={15} /> Delete area
-                    </button>
-                  </div>
-                  <p className="hint">
-                    <b>Remove from map</b> keeps the location for picking and search. <b>Delete area</b> deletes the location too.
-                  </p>
-                </>
-              )}
-            </>
-          ) : term.trim() ? (
+          {term.trim() ? (
             <>
               <div className="zone-group-title">
                 {matching.length} PO{matching.length === 1 ? "" : "s"} match · {busiest.length} area{busiest.length === 1 ? "" : "s"}
@@ -429,7 +350,7 @@ function MapView() {
             </>
           )}
 
-          {!zone && !locLoading && removedZones.length > 0 && visibleIds.size > 0 && (
+          {!locLoading && removedZones.length > 0 && visibleIds.size > 0 && (
             <>
               <hr className="divider" />
               <div className="zone-group-title">Removed areas ({removedZones.length})</div>
@@ -449,7 +370,7 @@ function MapView() {
             </>
           )}
 
-          {offMap.length > 0 && !zone && (
+          {offMap.length > 0 && (
             <>
               <hr className="divider" />
               <div className="zone-group-title">Not on the map ({offMap.length})</div>
@@ -462,6 +383,113 @@ function MapView() {
           )}
         </aside>
       </div>
+
+      {zone && (
+        <div className="sheet-backdrop" onClick={() => selectZone(null)}>
+          <div
+            className="sheet"
+            role="dialog"
+            aria-modal="true"
+            aria-label={zoneLocation?.name || zone.label}
+            onClick={(e) => e.stopPropagation()}
+          >
+              <div className="sheet-head">
+                <div style={{ minWidth: 0, flex: 1 }}>
+                  <div className="zone-group-title">Selected area</div>
+                  {zoneLocation && editingName !== null ? (
+                    <form className="row" onSubmit={(e) => onRename(e, zoneLocation.id)} style={{ flexWrap: "nowrap", marginTop: 4 }}>
+                      <input
+                        autoFocus
+                        value={editingName}
+                        onChange={(e) => setEditingName(e.target.value)}
+                        onKeyDown={(e) => e.key === "Escape" && setEditingName(null)}
+                        aria-label="Location name"
+                        style={{ padding: "8px 10px", minWidth: 0, flex: 1 }}
+                        disabled={savingName}
+                      />
+                      <button className="btn btn-primary btn-icon" aria-label="Save name" disabled={savingName || !editingName.trim()}>
+                        <CheckIcon size={16} />
+                      </button>
+                      <button type="button" className="btn btn-icon" aria-label="Cancel" onClick={() => setEditingName(null)}>
+                        <XIcon size={16} />
+                      </button>
+                    </form>
+                  ) : (
+                    <h2 className="section-title" style={{ fontSize: "1.25rem" }}>
+                      <PinIcon size={18} /> {zoneLocation?.name || zone.label}
+                      {zoneLocation && (
+                        <button
+                          className="btn btn-ghost btn-icon"
+                          aria-label="Edit name"
+                          title="Edit name"
+                          onClick={() => setEditingName(zoneLocation.name || zone.label)}
+                        >
+                          <EditIcon size={16} />
+                        </button>
+                      )}
+                    </h2>
+                  )}
+                  {nameError && <p className="error small">{nameError}</p>}
+                </div>
+                <button className="sheet-close" aria-label="Close area" onClick={() => selectZone(null)}>
+                  <XIcon size={22} />
+                </button>
+              </div>
+            <div className="sheet-body stack">
+                {ordersLoading ? (
+                  <div className="skeleton" style={{ height: 60 }} />
+                ) : zoneOrders.length === 0 ? (
+                  <p className="hint">
+                    {term.trim() ? `No POs matching “${term}” here.` : "No POs stored here yet."}
+                  </p>
+                ) : (
+                  <ul className="panel-list">
+                    {zoneOrders.map((o) => (
+                      <OrderItem key={o.id} order={o} active={activeDot === o.id} onHover={setActiveDot} />
+                    ))}
+                  </ul>
+                )}
+                {zoneLocation && (
+                  <div className="area-actions" style={zoneOrders.length ? undefined : { gridTemplateColumns: "1fr" }}>
+                    <Link href={`/orders/new?loc=${zoneLocation.id}`} className="btn btn-primary">
+                      <PlusIcon size={16} /> Add order here
+                    </Link>
+                    {zoneOrders.length > 0 && (
+                      <Link href={`/?loc=${zoneLocation.id}`} className="btn">
+                        Open in search <ChevronRight size={16} />
+                      </Link>
+                    )}
+                  </div>
+                )}
+                {zoneLocation && (
+                  <>
+                    <hr className="divider" />
+                    <div className="zone-group-title">Manage this area</div>
+                    <div className="area-actions">
+                      <button
+                        className="btn"
+                        disabled={!!busyZone}
+                        onClick={() => onRemoveFromMap(zoneLocation.id, zoneLocation.name || zone.label)}
+                      >
+                        <XIcon size={15} /> Remove from map
+                      </button>
+                      <button
+                        className="btn btn-danger"
+                        disabled={!!busyZone}
+                        onClick={() => onDeleteArea(zoneLocation.id, zoneLocation.name, (byZone[zone.id] ?? []).length)}
+                      >
+                        <TrashIcon size={15} /> Delete area
+                      </button>
+                    </div>
+                    <p className="hint">
+                      <b>Remove from map</b> keeps the location for picking and search. <b>Delete area</b> deletes the location too.
+                    </p>
+                  </>
+                )}
+            </div>
+          </div>
+        </div>
+      )}
       </>
       )}
     </>
