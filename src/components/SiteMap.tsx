@@ -301,7 +301,7 @@ export default function SiteMap({
       className={`site-map ${compact ? "is-compact" : ""} ${zoomed ? "is-zoomed" : ""} ${className}`}
       viewBox={`${view.x} ${view.y} ${view.w} ${view.h}`}
       role={interactive ? "group" : "img"}
-      aria-label="Site map"
+      aria-label="Yard blueprint"
       onPointerDown={onPointerDown}
       onPointerMove={onPointerMove}
       onPointerUp={onPointerUp}
@@ -462,7 +462,7 @@ export default function SiteMap({
   return (
     <div className="map-stage">
       {svg}
-      <div className="map-controls" role="toolbar" aria-label="Map zoom">
+      <div className="map-controls" role="toolbar" aria-label="Blueprint zoom">
         <button type="button" className="map-ctl" onClick={() => zoomBy(0.6)} aria-label="Zoom in" title="Zoom in">
           +
         </button>

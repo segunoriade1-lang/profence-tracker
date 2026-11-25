@@ -157,12 +157,12 @@ function MapView() {
   const [busyZone, setBusyZone] = useState<string | null>(null);
 
   async function onRemoveFromMap(locationId: string, label: string) {
-    if (!confirm(`Remove “${label}” from the map?\n\nThe location and its POs stay — it just won't be drawn on the map. You can add it back from “Removed areas”.`)) return;
+    if (!confirm(`Remove “${label}” from the blueprint?\n\nThe location and its POs stay — it just won't be drawn on the blueprint. You can add it back from “Removed areas”.`)) return;
     setBusyZone(label);
     try {
       await removeFromMap(locationId);
       selectZone(null);
-      setSyncMsg(`Removed “${label}” from the map.`);
+      setSyncMsg(`Removed “${label}” from the blueprint.`);
     } finally {
       setBusyZone(null);
     }
@@ -170,8 +170,8 @@ function MapView() {
 
   async function onDeleteArea(locationId: string, label: string, poCount: number) {
     const warn = poCount
-      ? `Delete “${label}”?\n\n${poCount} PO${poCount === 1 ? " is" : "s are"} stored here. They'll keep the name “${label}” but won't appear on the map until you move them to another location.\n\nThis deletes the location and removes the area from the map.`
-      : `Delete “${label}”?\n\nThis deletes the location and removes the area from the map. You can add the area back later from “Removed areas”.`;
+      ? `Delete “${label}”?\n\n${poCount} PO${poCount === 1 ? " is" : "s are"} stored here. They'll keep the name “${label}” but won't appear on the blueprint until you move them to another location.\n\nThis deletes the location and removes the area from the blueprint.`
+      : `Delete “${label}”?\n\nThis deletes the location and removes the area from the blueprint. You can add the area back later from “Removed areas”.`;
     if (!confirm(warn)) return;
     setBusyZone(label);
     try {
@@ -201,7 +201,7 @@ function MapView() {
     setSyncMsg(null);
     try {
       const r = await syncMapLocations(locations);
-      setSyncMsg(`Created ${r.created} new location${r.created === 1 ? "" : "s"} and linked ${r.linked} existing one${r.linked === 1 ? "" : "s"} to the map.`);
+      setSyncMsg(`Created ${r.created} new location${r.created === 1 ? "" : "s"} and linked ${r.linked} existing one${r.linked === 1 ? "" : "s"} to the blueprint.`);
     } catch (e) {
       setSyncMsg(`Couldn't update locations: ${(e as Error).message}`);
     } finally {
@@ -246,20 +246,20 @@ function MapView() {
       <div className="page-head">
         <div>
           <div className="eyebrow">
-            <MapIcon size={14} /> Site map
+            <MapIcon size={14} /> Yard blueprint
           </div>
           <h1>Phoenix Fence yard</h1>
           <p className="muted">
             {view === "list"
               ? "Every place items can be stored: yard areas, bays, offices, shelves and bins."
-              : "Tap an area to see the POs stored there. Search to light up where items are."}
+              : "Tap an area to see the POs stored there. Find a PO to light up where it is."}
           </p>
         </div>
       </div>
 
-      <div className="seg" role="tablist" aria-label="Map view" style={{ marginBottom: 18 }}>
+      <div className="seg" role="tablist" aria-label="View" style={{ marginBottom: 18 }}>
         <Link href="/map" className={view === "map" ? "on" : ""} role="tab" aria-selected={view === "map"} scroll={false}>
-          Map
+          Blueprint
         </Link>
         <Link href="/map?view=list" className={view === "list" ? "on" : ""} role="tab" aria-selected={view === "list"} scroll={false}>
           Locations list <span className="count-badge">{locations.length}</span>
@@ -274,11 +274,11 @@ function MapView() {
       {!locLoading && missing > 0 && (
         <div className="notice row between" style={{ alignItems: "center" }}>
           <span>
-            <strong>{missing} map area{missing === 1 ? "" : "s"}</strong> aren&apos;t set up as locations yet
+            <strong>{missing} blueprint area{missing === 1 ? "" : "s"}</strong> aren&apos;t set up as locations yet
             {plan.link.length > 0 && ` (${plan.link.length} will be linked to locations you already have)`}.
           </span>
           <button className="btn btn-primary" onClick={onSync} disabled={syncing}>
-            {syncing ? "Setting up…" : "Set up map locations"}
+            {syncing ? "Setting up…" : "Set up blueprint areas"}
           </button>
         </div>
       )}
@@ -318,10 +318,10 @@ function MapView() {
               className="search"
               style={{ padding: "13px 14px 13px 46px", fontSize: "0.98rem" }}
               type="search"
-              placeholder="Find a PO on the map…"
+              placeholder="Find a PO on the blueprint…"
               value={term}
               onChange={(e) => setTerm(e.target.value)}
-              aria-label="Search POs on the map"
+              aria-label="Find POs on the blueprint"
             />
           </div>
 
@@ -350,7 +350,7 @@ function MapView() {
             <>
               <div className="zone-group-title">Busiest areas</div>
               {busiest.length === 0 ? (
-                <p className="hint">No POs on the map yet. Tap an area to see what&apos;s there.</p>
+                <p className="hint">No POs on the blueprint yet. Tap an area to see what&apos;s there.</p>
               ) : (
                 <div className="pills">
                   {busiest.map((z) => (
@@ -375,7 +375,7 @@ function MapView() {
                     className="pill pill-ghost"
                     disabled={!!busyZone}
                     onClick={() => onAddBack(z.id)}
-                    title={`Put ${z.label} back on the map`}
+                    title={`Put ${z.label} back on the blueprint`}
                   >
                     <PlusIcon size={14} /> {z.label}
                   </button>
@@ -476,7 +476,7 @@ function MapView() {
                     ))}
                   </ul>
                 )}
-                {zoneOrders.length > 1 && <p className="hint" style={{ margin: 0 }}>Tap a PO to find it on the map · tap it again for details</p>}
+                {zoneOrders.length > 1 && <p className="hint" style={{ margin: 0 }}>Tap a PO to find it on the blueprint · tap it again for details</p>}
                 {zoneLocation && (
                   <div className="area-actions" style={zoneOrders.length ? undefined : { gridTemplateColumns: "1fr" }}>
                     <Link href={`/orders/new?loc=${zoneLocation.id}`} className="btn btn-primary">
@@ -503,7 +503,7 @@ function MapView() {
                         disabled={!!busyZone}
                         onClick={() => onRemoveFromMap(zoneLocation.id, zoneLocation.name || zone.label)}
                       >
-                        <XIcon size={15} /> Remove from map
+                        <XIcon size={15} /> Remove from blueprint
                       </button>
                       <button
                         className="btn btn-danger"
@@ -514,7 +514,7 @@ function MapView() {
                       </button>
                     </div>
                     <p className="hint">
-                      <b>Remove from map</b> keeps the location for picking and search. <b>Delete area</b> deletes the location too.
+                      <b>Remove from blueprint</b> keeps the location so you can still store POs there. <b>Delete area</b> deletes the location too.
                     </p>
                   </>
                 )}

@@ -123,7 +123,7 @@ function OrderDetail() {
               <div className="row between" style={{ marginBottom: 10 }}>
                 <span className="zone-group-title">{released ? "Where it was" : "Where to find it"}</span>
                 <Link href={`/map?zone=${zoneId}`} className="small" style={{ fontWeight: 650 }}>
-                  Open map <ChevronRight size={14} style={{ verticalAlign: -2 }} />
+                  Open blueprint <ChevronRight size={14} style={{ verticalAlign: -2 }} />
                 </Link>
               </div>
               <SiteMap

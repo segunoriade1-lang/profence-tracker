@@ -153,9 +153,9 @@ export default function LocationsManager() {
                             <div className="loc-count">
                               {count} item{count === 1 ? "" : "s"} ·{" "}
                               {l.zoneId ? (
-                                <Link href={`/map?zone=${l.zoneId}`}>on map</Link>
+                                <Link href={`/map?zone=${l.zoneId}`}>on blueprint</Link>
                               ) : (
-                                <span>not on map</span>
+                                <span>not on blueprint</span>
                               )}
                             </div>
                           </div>
