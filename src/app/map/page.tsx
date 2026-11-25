@@ -387,7 +387,7 @@ function MapView() {
           {offMap.length > 0 && (
             <>
               <hr className="divider" />
-              <div className="zone-group-title">Not on the map ({offMap.length})</div>
+              <div className="zone-group-title">Not on the blueprint ({offMap.length})</div>
               <ul className="panel-list">
                 {offMap.slice(0, 5).map((o) => (
                   <OrderItem key={o.id} order={o} active={activeDot === o.id} onHover={setActiveDot} />
