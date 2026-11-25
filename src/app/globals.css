@@ -1020,3 +1020,67 @@ code { background: var(--surface-sunk); padding: 2px 6px; border-radius: 6px; fo
 .panel-item-btn.is-active { background: var(--accent-soft); border-color: var(--accent); }
 .panel-item-btn.is-active .chev { color: var(--accent); }
 .sheet-back { background: none; border: 0; padding: 0; font: inherit; cursor: pointer; align-self: flex-start; }
+
+/* ---------- Multi-select QR labels (orders list) ---------- */
+.order-row-select { width: 100%; text-align: left; font: inherit; cursor: pointer; }
+.order-row-select.is-selected { border-color: var(--accent); background: var(--accent-soft); }
+.select-box {
+  width: 22px; height: 22px; flex: none; border-radius: 6px;
+  border: 1.5px solid var(--border-strong); background: var(--surface);
+  display: grid; place-items: center; color: var(--on-accent, #fff);
+}
+.select-box.on { background: var(--accent); border-color: var(--accent); }
+.list-head-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+.select-bar {
+  position: fixed; left: 50%; transform: translateX(-50%);
+  bottom: calc(16px + env(safe-area-inset-bottom)); z-index: 40;
+  display: flex; align-items: center; gap: 8px; flex-wrap: wrap; justify-content: center;
+  width: max-content; max-width: calc(100vw - 24px);
+  padding: 10px 10px 10px 16px; border-radius: var(--radius-lg);
+  background: var(--surface); border: 1px solid var(--border-strong); box-shadow: var(--shadow-lg);
+}
+.select-bar-count { font-weight: 600; margin-right: 4px; }
+body:has(.select-bar) .scan-fab { display: none; }
+body:has(.select-bar) .container { padding-bottom: 120px; }
+
+/* ---------- Label print sheet ---------- */
+.sheet-options { display: flex; flex-wrap: wrap; gap: 18px 28px; align-items: center; margin-bottom: 16px; }
+.opt { display: flex; flex-direction: column; gap: 6px; }
+.opt-label { font-size: 0.8125rem; font-weight: 500; color: var(--text-2); }
+.opt-check { flex-direction: row; align-items: center; gap: 8px; cursor: pointer; font-size: 0.875rem; }
+.opt-check input { width: 18px; height: 18px; min-height: 0; padding: 0; accent-color: var(--accent); }
+.select-sm { width: auto; min-height: 32px; padding: 4px 10px; font-size: 0.875rem; }
+.sheets { display: flex; flex-direction: column; align-items: center; gap: 24px; padding-bottom: 40px; }
+.sheet {
+  width: 100%; max-width: 640px;
+  display: grid; padding: 4.7%;
+  background: #fff; color: #000;
+  border: 1px solid var(--border); box-shadow: var(--shadow);
+}
+.sheet-cell {
+  position: relative; min-width: 0; min-height: 0;
+  display: grid; place-items: center; padding: 4%;
+}
+.sheet-cell.has-cut { outline: 1px dashed #b8bdc4; outline-offset: -0.5px; }
+.sheet-cell img { width: 100%; height: 100%; object-fit: contain; display: block; }
+.sheet-remove {
+  position: absolute; top: 4px; right: 4px; width: 24px; height: 24px; border-radius: 50%;
+  display: none; place-items: center; cursor: pointer;
+  border: 1px solid #c9ced5; background: #fff; color: #333;
+}
+.sheet-cell:hover .sheet-remove { display: grid; }
+@media (pointer: coarse) { .sheet-remove { display: grid; } }
+
+@media print {
+  .topbar, .scan-fab, .print-controls, .sheet-remove, .setup-notice { display: none !important; }
+  html, body { background: #fff !important; }
+  .container { padding: 0 !important; margin: 0 !important; max-width: none !important; }
+  .sheets { display: block; padding: 0; gap: 0; }
+  .sheet {
+    width: var(--sheet-w); height: var(--sheet-h); max-width: none; aspect-ratio: auto !important;
+    border: 0; box-shadow: none; padding: 0.4in;
+    break-after: page; page-break-after: always; break-inside: avoid;
+  }
+  .sheet:last-child { break-after: auto; page-break-after: auto; }
+  .sheet-cell.has-cut { outline-color: #999; }
+}

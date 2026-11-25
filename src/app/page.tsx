@@ -3,7 +3,8 @@
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useMemo, useRef, useState } from "react";
-import { BoxIcon, CheckIcon, ChevronRight, MapIcon, PinIcon, PlusIcon, SearchIcon, XIcon } from "@/components/Icons";
+import { BoxIcon, CheckIcon, ChevronRight, MapIcon, PinIcon, PlusIcon, PrintIcon, QrIcon, SearchIcon, XIcon } from "@/components/Icons";
+import { loadSelection, saveSelection } from "@/lib/labelSelection";
 import Pagination from "@/components/Pagination";
 import { GROUP_ORDER, groupOf, type LocGroup } from "@/lib/siteMap";
 import SetupNotice from "@/components/Setup";
@@ -26,6 +27,27 @@ function Home() {
   const grpParam = params.get("grp") as LocGroup | null;
   const requestedPage = Math.max(1, parseInt(params.get("page") ?? "1", 10) || 1);
   const listTop = useRef<HTMLDivElement>(null);
+
+  // Pick several orders to print their QR labels on one sheet.
+  const [selecting, setSelecting] = useState(false);
+  const [selected, setSelected] = useState<string[]>([]);
+  useEffect(() => {
+    const saved = loadSelection();
+    if (saved.length) {
+      setSelected(saved);
+      setSelecting(true);
+    }
+  }, []);
+  function updateSelection(next: string[]) {
+    setSelected(next);
+    saveSelection(next);
+  }
+  const toggle = (id: string) =>
+    updateSelection(selected.includes(id) ? selected.filter((x) => x !== id) : [...selected, id]);
+  function stopSelecting() {
+    setSelecting(false);
+    updateSelection([]);
+  }
 
   function setQuery(next: { q?: string; loc?: string; grp?: string; page?: number }) {
     const sp = new URLSearchParams(params.toString());
@@ -172,9 +194,20 @@ function Home() {
             </div>
           )}
         </div>
-        <Link href="/orders/new" className="btn btn-primary">
-          <PlusIcon size={17} /> New inventory order
-        </Link>
+        <div className="list-head-actions">
+          {selecting ? (
+            <button className="btn" onClick={stopSelecting}>
+              <XIcon size={16} /> Cancel selecting
+            </button>
+          ) : (
+            <button className="btn" onClick={() => setSelecting(true)} disabled={!orders.length}>
+              <QrIcon size={16} /> Select labels
+            </button>
+          )}
+          <Link href="/orders/new" className="btn btn-primary">
+            <PlusIcon size={17} /> New inventory order
+          </Link>
+        </div>
       </div>
 
       {loading ? (
@@ -216,9 +249,9 @@ function Home() {
       ) : (
         <>
           <ul className="list">
-            {pageItems.map((o) => (
-              <li key={o.id}>
-                <Link href={`/orders/${o.id}`} className="order-row">
+            {pageItems.map((o) => {
+              const body = (
+                <>
                   {o.photoThumb ? (
                     // eslint-disable-next-line @next/next/no-img-element
                     <img className="thumb" src={o.photoThumb} alt="" />
@@ -243,13 +276,64 @@ function Home() {
                       {o.locationName || "No location"}
                     </span>
                   )}
-                  <ChevronRight className="chev" size={20} />
-                </Link>
-              </li>
-            ))}
+                </>
+              );
+              if (selecting) {
+                const on = selected.includes(o.id);
+                return (
+                  <li key={o.id}>
+                    <button
+                      type="button"
+                      className={`order-row order-row-select ${on ? "is-selected" : ""}`}
+                      onClick={() => toggle(o.id)}
+                      aria-pressed={on}
+                    >
+                      <span className={`select-box ${on ? "on" : ""}`} aria-hidden>
+                        {on && <CheckIcon size={14} />}
+                      </span>
+                      {body}
+                    </button>
+                  </li>
+                );
+              }
+              return (
+                <li key={o.id}>
+                  <Link href={`/orders/${o.id}`} className="order-row">
+                    {body}
+                    <ChevronRight className="chev" size={20} />
+                  </Link>
+                </li>
+              );
+            })}
           </ul>
           <Pagination page={page} totalPages={totalPages} onChange={goToPage} />
         </>
+      )}
+
+      {selecting && (
+        <div className="select-bar" role="region" aria-label="Selected labels">
+          <span className="select-bar-count">{selected.length} selected</span>
+          {results.some((o) => !selected.includes(o.id)) ? (
+            <button
+              className="btn btn-ghost"
+              onClick={() => updateSelection([...selected, ...results.map((o) => o.id).filter((id) => !selected.includes(id))])}
+            >
+              Select all {results.length}
+            </button>
+          ) : null}
+          {selected.length > 0 && (
+            <button className="btn btn-ghost" onClick={() => updateSelection([])}>
+              Clear
+            </button>
+          )}
+          <button
+            className="btn btn-primary"
+            disabled={!selected.length}
+            onClick={() => router.push(`/labels?ids=${selected.join(",")}`)}
+          >
+            <PrintIcon size={16} /> Print labels
+          </button>
+        </div>
       )}
     </>
   );
