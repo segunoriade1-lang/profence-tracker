@@ -2,56 +2,42 @@
 
 import { useEffect, useState } from "react";
 import { THEME_KEY } from "@/lib/theme";
-import { MonitorIcon, MoonIcon, SunIcon } from "./Icons";
+import { MoonIcon, SunIcon } from "./Icons";
 
-type Theme = "light" | "dark" | "system";
-const KEY = THEME_KEY;
+type Mode = "light" | "dark";
 
-function apply(theme: Theme) {
-  const root = document.documentElement;
-  if (theme === "system") root.removeAttribute("data-theme");
-  else root.setAttribute("data-theme", theme);
+/** The theme on screen now: the saved choice, otherwise the device setting. */
+function current(): Mode {
+  const set = document.documentElement.getAttribute("data-theme");
+  if (set === "light" || set === "dark") return set;
+  return window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
 }
 
-const options: { value: Theme; label: string; Icon: typeof SunIcon }[] = [
-  { value: "light", label: "Light mode", Icon: SunIcon },
-  { value: "dark", label: "Dark mode", Icon: MoonIcon },
-  { value: "system", label: "Match device", Icon: MonitorIcon },
-];
-
+/** One button that flips between light and dark. Follows the device until it's first used. */
 export default function ThemeSwitch() {
-  const [theme, setTheme] = useState<Theme>("system");
+  const [mode, setMode] = useState<Mode | null>(null);
 
   useEffect(() => {
-    try {
-      const saved = localStorage.getItem(KEY);
-      if (saved === "light" || saved === "dark") setTheme(saved);
-    } catch {}
+    setMode(current());
+    const mq = window.matchMedia("(prefers-color-scheme: dark)");
+    const onChange = () => setMode(current());
+    mq.addEventListener("change", onChange);
+    return () => mq.removeEventListener("change", onChange);
   }, []);
 
-  function choose(t: Theme) {
-    setTheme(t);
-    apply(t);
+  function toggle() {
+    const next: Mode = (mode ?? current()) === "dark" ? "light" : "dark";
+    document.documentElement.setAttribute("data-theme", next);
+    setMode(next);
     try {
-      if (t === "system") localStorage.removeItem(KEY);
-      else localStorage.setItem(KEY, t);
+      localStorage.setItem(THEME_KEY, next);
     } catch {}
   }
 
+  const label = mode === "dark" ? "Switch to light mode" : "Switch to dark mode";
   return (
-    <div className="theme-switch" role="group" aria-label="Theme">
-      {options.map(({ value, label, Icon }) => (
-        <button
-          key={value}
-          type="button"
-          aria-pressed={theme === value}
-          aria-label={label}
-          title={label}
-          onClick={() => choose(value)}
-        >
-          <Icon size={16} />
-        </button>
-      ))}
-    </div>
+    <button type="button" className="theme-toggle" onClick={toggle} aria-label={label} title={label}>
+      {mode === "dark" ? <SunIcon size={17} /> : <MoonIcon size={17} />}
+    </button>
   );
 }
