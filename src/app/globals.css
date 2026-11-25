@@ -981,3 +981,7 @@ code { background: var(--surface-sunk); padding: 2px 6px; border-radius: 6px; fo
   .group-chips { display: grid; grid-template-columns: repeat(4, 1fr); }
   .group-chip { justify-content: center; padding: 8px 6px; font-size: 0.86rem; gap: 5px; }
 }
+
+/* Locations list grouped by Yard / Bays / Offices */
+.loc-groups { display: flex; flex-direction: column; gap: 22px; }
+.loc-group .zone-group-title { display: flex; align-items: center; gap: 8px; margin: 0 0 10px; }

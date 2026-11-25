@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useState } from "react";
 import { CheckIcon, EditIcon, MapIcon, PinIcon, PlusIcon, TrashIcon, XIcon } from "@/components/Icons";
+import { GROUP_LABEL, GROUP_ORDER, groupOf } from "@/lib/siteMap";
 import { addLocations, deleteLocation, isReleased, renameLocation, useLocations, useOrders } from "@/lib/data";
 
 export default function LocationsManager() {
@@ -110,54 +111,69 @@ export default function LocationsManager() {
           <span>Add the places in your office where items are kept.</span>
         </div>
       ) : (
-        <div className="loc-grid">
-          {locations.map((l) => {
-            const count = orders.filter((o) => o.locationId === l.id).length;
+        <div className="loc-groups">
+          {GROUP_ORDER.map((g) => {
+            const list = locations
+              .filter((l) => groupOf(l.zoneId) === g)
+              .sort((x, y) => x.name.localeCompare(y.name));
+            if (!list.length) return null;
             return (
-              <div key={l.id} className="loc-card">
-                <span className="loc-icon">
-                  <PinIcon size={20} />
-                </span>
-                {editing?.id === l.id ? (
-                  <form className="row grow" onSubmit={onRename} style={{ flexWrap: "nowrap" }}>
-                    <input
-                      autoFocus
-                      value={editing.name}
-                      onChange={(e) => setEditing({ id: l.id, name: e.target.value })}
-                      aria-label="Location name"
-                      style={{ padding: "8px 10px" }}
-                    />
-                    <button className="btn btn-primary btn-icon" aria-label="Save name">
-                      <CheckIcon size={16} />
-                    </button>
-                    <button type="button" className="btn btn-icon" aria-label="Cancel" onClick={() => setEditing(null)}>
-                      <XIcon size={16} />
-                    </button>
-                  </form>
-                ) : (
-                  <>
-                    <div className="grow" style={{ minWidth: 0 }}>
-                      <div className="loc-name">{l.name}</div>
-                      <div className="loc-count">
-                        {count} item{count === 1 ? "" : "s"} ·{" "}
-                        {l.zoneId ? (
-                          <Link href={`/map?zone=${l.zoneId}`}>on map</Link>
-                        ) : (
-                          <span>not on map</span>
-                        )}
-                      </div>
+              <section key={g} className="loc-group">
+                <h3 className="zone-group-title">
+                  {GROUP_LABEL[g]} <span className="count-badge">{list.length}</span>
+                </h3>
+                <div className="loc-grid">
+                  {list.map((l) => {
+                  const count = orders.filter((o) => o.locationId === l.id).length;
+                  return (
+                    <div key={l.id} className="loc-card">
+                      <span className="loc-icon">
+                        <PinIcon size={20} />
+                      </span>
+                      {editing?.id === l.id ? (
+                        <form className="row grow" onSubmit={onRename} style={{ flexWrap: "nowrap" }}>
+                          <input
+                            autoFocus
+                            value={editing.name}
+                            onChange={(e) => setEditing({ id: l.id, name: e.target.value })}
+                            aria-label="Location name"
+                            style={{ padding: "8px 10px" }}
+                          />
+                          <button className="btn btn-primary btn-icon" aria-label="Save name">
+                            <CheckIcon size={16} />
+                          </button>
+                          <button type="button" className="btn btn-icon" aria-label="Cancel" onClick={() => setEditing(null)}>
+                            <XIcon size={16} />
+                          </button>
+                        </form>
+                      ) : (
+                        <>
+                          <div className="grow" style={{ minWidth: 0 }}>
+                            <div className="loc-name">{l.name}</div>
+                            <div className="loc-count">
+                              {count} item{count === 1 ? "" : "s"} ·{" "}
+                              {l.zoneId ? (
+                                <Link href={`/map?zone=${l.zoneId}`}>on map</Link>
+                              ) : (
+                                <span>not on map</span>
+                              )}
+                            </div>
+                          </div>
+                          <div className="loc-actions">
+                            <button className="btn btn-ghost" aria-label={`Rename ${l.name}`} title="Rename" onClick={() => setEditing({ id: l.id, name: l.name })}>
+                              <EditIcon size={16} />
+                            </button>
+                            <button className="btn btn-ghost btn-danger" aria-label={`Delete ${l.name}`} title="Delete" onClick={() => onDelete(l.id, l.name)}>
+                              <TrashIcon size={16} />
+                            </button>
+                          </div>
+                        </>
+                      )}
                     </div>
-                    <div className="loc-actions">
-                      <button className="btn btn-ghost" aria-label={`Rename ${l.name}`} title="Rename" onClick={() => setEditing({ id: l.id, name: l.name })}>
-                        <EditIcon size={16} />
-                      </button>
-                      <button className="btn btn-ghost btn-danger" aria-label={`Delete ${l.name}`} title="Delete" onClick={() => onDelete(l.id, l.name)}>
-                        <TrashIcon size={16} />
-                      </button>
-                    </div>
-                  </>
-                )}
-              </div>
+                  );
+                  })}
+                </div>
+              </section>
             );
           })}
         </div>

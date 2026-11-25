@@ -3,9 +3,9 @@
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useMemo, useRef, useState } from "react";
-import { BoxIcon, CheckIcon, ChevronRight, MapIcon, PinIcon, PlusIcon, SearchIcon } from "@/components/Icons";
+import { BoxIcon, CheckIcon, ChevronRight, MapIcon, PinIcon, PlusIcon, SearchIcon, XIcon } from "@/components/Icons";
 import Pagination from "@/components/Pagination";
-import { GROUP_LABEL, GROUP_ORDER, groupOf, type LocGroup } from "@/lib/siteMap";
+import { GROUP_ORDER, groupOf, type LocGroup } from "@/lib/siteMap";
 import SetupNotice from "@/components/Setup";
 import { ageDays, isReleased, matchesSearch, SWEEP_DAYS, useLocations, useOrders } from "@/lib/data";
 
@@ -79,22 +79,6 @@ function Home() {
     [listBase, term, locationId, activeGroup, groupOfLoc]
   );
 
-  // POs per group / location in the current tab (for the counts on the chips)
-  const groupCounts = useMemo(() => {
-    const g: Record<string, number> = {};
-    const l: Record<string, number> = {};
-    for (const o of listBase) {
-      g[grpOfOrder(o)] = (g[grpOfOrder(o)] ?? 0) + 1;
-      l[o.locationId] = (l[o.locationId] ?? 0) + 1;
-    }
-    return { g, l };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [listBase, groupOfLoc]);
-  const groupsPresent = GROUP_ORDER.filter(
-    (g) => g !== "other" || locations.some((l) => groupOf(l.zoneId) === "other")
-  );
-  const groupLocations = activeGroup ? locations.filter((l) => groupOf(l.zoneId) === activeGroup) : [];
-
   function tabHref(view: "stock" | "released") {
     const sp = new URLSearchParams(params.toString());
     sp.delete("page");
@@ -138,51 +122,13 @@ function Home() {
             aria-label="Search orders"
           />
         </div>
-        {locations.length > 0 && (
-          <div className="loc-filter">
-            <div className="group-chips" role="tablist" aria-label="Location group">
-              <button
-                role="tab"
-                aria-selected={!activeGroup}
-                className={`group-chip ${!activeGroup ? "on" : ""}`}
-                onClick={() => setQuery({ q: term, grp: "", loc: "" })}
-              >
-                All
-              </button>
-              {groupsPresent.map((g) => (
-                <button
-                  key={g}
-                  role="tab"
-                  aria-selected={activeGroup === g}
-                  className={`group-chip ${activeGroup === g ? "on" : ""}`}
-                  onClick={() => setQuery({ q: term, grp: activeGroup === g ? "" : g, loc: "" })}
-                >
-                  {GROUP_LABEL[g]}
-                  <span className="count-badge">{groupCounts.g[g] ?? 0}</span>
-                </button>
-              ))}
-            </div>
-            {activeGroup && groupLocations.length > 0 && (
-              <div className="pills pills-sm group-locs">
-                <button
-                  className={`pill ${!locationId ? "pill-on" : ""}`}
-                  onClick={() => setQuery({ q: term, grp: activeGroup, loc: "" })}
-                >
-                  All {GROUP_LABEL[activeGroup].toLowerCase()}
-                </button>
-                {groupLocations.map((l) => (
-                  <button
-                    key={l.id}
-                    className={`pill ${locationId === l.id ? "pill-on" : ""}`}
-                    onClick={() => setQuery({ q: term, grp: activeGroup, loc: locationId === l.id ? "" : l.id })}
-                  >
-                    <PinIcon size={14} />
-                    {l.name}
-                    {(groupCounts.l[l.id] ?? 0) > 0 && <span className="pill-count">{groupCounts.l[l.id]}</span>}
-                  </button>
-                ))}
-              </div>
-            )}
+        {locationId && (
+          <div className="pills pills-sm" style={{ marginTop: 12 }}>
+            <button className="pill pill-on" onClick={() => setQuery({ q: term, grp: "", loc: "" })} title="Show all locations">
+              <PinIcon size={14} />
+              {locations.find((l) => l.id === locationId)?.name ?? "Location"}
+              <XIcon size={13} />
+            </button>
           </div>
         )}
         {!loading && orders.length > 0 && (
